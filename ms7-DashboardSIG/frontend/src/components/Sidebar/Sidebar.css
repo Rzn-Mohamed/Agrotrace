@@ -1,0 +1,496 @@
+/* Styles pour le composant Sidebar */
+
+.sidebar {
+  width: 100%;
+  height: 100%;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.sidebar-header {
+  padding: 20px;
+  border-bottom: 2px solid #ecf0f1;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.sidebar-header h2 {
+  margin: 0 0 15px 0;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.export-btn {
+  background: rgba(46, 204, 113, 0.3);
+  border-color: rgba(46, 204, 113, 0.5);
+}
+
+.export-btn:hover {
+  background: rgba(46, 204, 113, 0.5);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+/* ============================================================================
+   CONTENT
+   ============================================================================ */
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.sidebar-section {
+  margin-bottom: 25px;
+  padding-bottom: 25px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+.sidebar-section:last-child {
+  border-bottom: none;
+}
+
+.sidebar-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   BADGES
+   ============================================================================ */
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.badge-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.badge-info {
+  background: #3498db;
+  color: white;
+}
+
+/* ============================================================================
+   STATISTIQUES
+   ============================================================================ */
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #ecf0f1;
+  transition: all 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.stat-card.critical {
+  background: #e74c3c08;
+  border-color: #e74c3c30;
+}
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #95a5a6;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+/* ============================================================================
+   DISTRIBUTION
+   ============================================================================ */
+
+.distribution {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.distribution h4 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #34495e;
+  font-weight: 600;
+}
+
+.distribution-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.distribution-item {
+  display: grid;
+  grid-template-columns: 80px 1fr 30px;
+  align-items: center;
+  gap: 10px;
+}
+
+.distribution-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #34495e;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.distribution-bar {
+  height: 8px;
+  background: #ecf0f1;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.distribution-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.distribution-count {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* ============================================================================
+   ALERTES MINI
+   ============================================================================ */
+
+.alertes-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.alert-mini {
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  background: #f8f9fa;
+}
+
+.alert-mini.severite-elevee {
+  border-color: #e74c3c;
+  background: #e74c3c08;
+}
+
+.alert-mini.severite-moyenne {
+  border-color: #f39c12;
+  background: #f39c1208;
+}
+
+.alert-mini.severite-faible {
+  border-color: #3498db;
+  background: #3498db08;
+}
+
+.alert-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.alert-mini-parcelle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.alert-mini-badge {
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.alert-mini-badge.severite-elevee {
+  background: #e74c3c;
+  color: white;
+}
+
+.alert-mini-badge.severite-moyenne {
+  background: #f39c12;
+  color: white;
+}
+
+.alert-mini-badge.severite-faible {
+  background: #3498db;
+  color: white;
+}
+
+.alert-mini-disease {
+  font-size: 12px;
+  color: #7f8c8d;
+}
+
+/* ============================================================================
+   RECOMMANDATIONS MINI
+   ============================================================================ */
+
+.recos-mini-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reco-mini {
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  background: #f8f9fa;
+}
+
+.reco-mini.priorite-urgente {
+  border-color: #e74c3c;
+  background: #e74c3c08;
+}
+
+.reco-mini.priorite-haute {
+  border-color: #f39c12;
+  background: #f39c1208;
+}
+
+.reco-mini.priorite-normale {
+  border-color: #3498db;
+  background: #3498db08;
+}
+
+.reco-mini.priorite-basse {
+  border-color: #95a5a6;
+  background: #95a5a608;
+}
+
+.reco-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.reco-mini-parcelle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.reco-mini-badge {
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reco-mini-badge.priorite-urgente {
+  background: #e74c3c;
+  color: white;
+}
+
+.reco-mini-badge.priorite-haute {
+  background: #f39c12;
+  color: white;
+}
+
+.reco-mini-badge.priorite-normale {
+  background: #3498db;
+  color: white;
+}
+
+.reco-mini-badge.priorite-basse {
+  background: #95a5a6;
+  color: white;
+}
+
+.reco-mini-details {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #34495e;
+}
+
+/* ============================================================================
+   ÉTATS VIDES
+   ============================================================================ */
+
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: #95a5a6;
+  font-size: 13px;
+}
+
+.show-more {
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: #7f8c8d;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.show-more:hover {
+  color: #3498db;
+}
+
+/* ============================================================================
+   LOADING
+   ============================================================================ */
+
+.sidebar-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #95a5a6;
+}
+
+.spinner-small {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(149, 165, 166, 0.3);
+  border-top-color: #95a5a6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.sidebar-loading p {
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+/* ============================================================================
+   SCROLLBAR
+   ============================================================================ */
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #bdc3c7;
+  border-radius: 3px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #95a5a6;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}

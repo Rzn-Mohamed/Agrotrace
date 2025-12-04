@@ -1,0 +1,124 @@
+# ============================================================================
+# Docker Compose - DashboardSIG AgroTrace-MS
+# ============================================================================
+# Ce fichier orchestre les 3 services:
+# - postgis: Base de données PostgreSQL avec extension PostGIS
+# - backend: API Node.js/Express
+# - frontend: Application React/Vite servie par Nginx
+# ============================================================================
+
+services:
+  # ==========================================================================
+  # SERVICE: PostGIS Database
+  # ==========================================================================
+  postgis:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: agrotrace-postgis
+    restart: unless-stopped
+    
+    environment:
+      POSTGRES_DB: agrotrace_sig
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data/pgdata
+    
+    volumes:
+      # Persistence des données
+      - postgis_data:/var/lib/postgresql/data
+      # Script d'initialisation
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    
+    ports:
+      - "5433:5432"
+    
+    networks:
+      - agrotrace-network
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # SERVICE: Backend API
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: agrotrace-backend
+    restart: unless-stopped
+    
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_HOST: postgis
+      DB_PORT: 5432
+      DB_NAME: agrotrace_sig
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      FRONTEND_URL: http://localhost:5173
+    
+    ports:
+      - "3001:3001"
+    
+    depends_on:
+      postgis:
+        condition: service_healthy
+    
+    networks:
+      - agrotrace-network
+    
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
+  # SERVICE: Frontend React
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: agrotrace-frontend
+    restart: unless-stopped
+    
+    environment:
+      VITE_API_URL: http://localhost:3001/api
+    
+    ports:
+      - "5173:80"
+    
+    depends_on:
+      backend:
+        condition: service_healthy
+    
+    networks:
+      - agrotrace-network
+    
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  agrotrace-network:
+    driver: bridge
+    name: agrotrace-network
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  postgis_data:
+    driver: local
+    name: agrotrace-postgis-data

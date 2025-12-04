@@ -1,0 +1,530 @@
+/* Styles pour le composant ParcellePopup */
+
+/* ============================================================================
+   OVERLAY & CONTAINER
+   ============================================================================ */
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+  padding: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.popup-content {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   HEADER
+   ============================================================================ */
+
+.popup-header {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.95));
+}
+
+.popup-header.stress-critique {
+  border-color: #e74c3c;
+  background: linear-gradient(135deg, #e74c3c10, #e74c3c05);
+}
+
+.popup-header.stress-modere {
+  border-color: #f39c12;
+  background: linear-gradient(135deg, #f39c1210, #f39c1205);
+}
+
+.popup-header.stress-ok {
+  border-color: #27ae60;
+  background: linear-gradient(135deg, #27ae6010, #27ae6005);
+}
+
+.popup-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+.popup-culture {
+  margin: 5px 0 0 0;
+  color: #7f8c8d;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.popup-close {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #2c3e50;
+}
+
+.popup-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: rotate(90deg);
+}
+
+/* ============================================================================
+   BODY
+   ============================================================================ */
+
+.popup-body {
+  padding: 20px;
+}
+
+.popup-section {
+  margin-bottom: 25px;
+}
+
+.popup-section:last-child {
+  margin-bottom: 0;
+}
+
+.popup-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 15px 0;
+  font-size: 16px;
+  color: #34495e;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #ecf0f1;
+}
+
+/* ============================================================================
+   INFORMATIONS GÉNÉRALES
+   ============================================================================ */
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #95a5a6;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 15px;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+/* ============================================================================
+   ÉTAT HYDRIQUE
+   ============================================================================ */
+
+.stress-badge {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border-left: 4px solid;
+}
+
+.stress-badge.stress-critique {
+  background: #e74c3c10;
+  border-color: #e74c3c;
+}
+
+.stress-badge.stress-modere {
+  background: #f39c1210;
+  border-color: #f39c12;
+}
+
+.stress-badge.stress-ok {
+  background: #27ae6010;
+  border-color: #27ae60;
+}
+
+.stress-icon {
+  font-size: 32px;
+}
+
+.stress-level {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.stress-message {
+  font-size: 13px;
+  color: #7f8c8d;
+  margin-top: 2px;
+}
+
+.stress-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stress-bar-container {
+  width: 100%;
+}
+
+.stress-bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #34495e;
+}
+
+.stress-percentage {
+  font-weight: 700;
+}
+
+.stress-bar {
+  height: 10px;
+  background: #ecf0f1;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.stress-bar-fill {
+  height: 100%;
+  transition: width 0.6s ease;
+  border-radius: 5px;
+}
+
+.stress-bar-fill.stress-critique {
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+.stress-bar-fill.stress-modere {
+  background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.stress-bar-fill.stress-ok {
+  background: linear-gradient(90deg, #27ae60, #229954);
+}
+
+.water-need {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3498db;
+  font-size: 14px;
+  padding: 10px;
+  background: #3498db10;
+  border-radius: 6px;
+}
+
+.water-need strong {
+  color: #2980b9;
+}
+
+/* ============================================================================
+   ALERTES MALADIES
+   ============================================================================ */
+
+.alertes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.alerte-card {
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.alerte-card.severite-elevee {
+  background: #e74c3c10;
+  border-color: #e74c3c;
+}
+
+.alerte-card.severite-moyenne {
+  background: #f39c1210;
+  border-color: #f39c12;
+}
+
+.alerte-card.severite-faible {
+  background: #3498db10;
+  border-color: #3498db;
+}
+
+.alerte-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.alerte-type {
+  font-weight: 700;
+  font-size: 15px;
+  color: #2c3e50;
+}
+
+.alerte-badge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.alerte-badge.severite-elevee {
+  background: #e74c3c;
+  color: white;
+}
+
+.alerte-badge.severite-moyenne {
+  background: #f39c12;
+  color: white;
+}
+
+.alerte-badge.severite-faible {
+  background: #3498db;
+  color: white;
+}
+
+.alerte-description {
+  margin: 8px 0;
+  font-size: 13px;
+  color: #34495e;
+  line-height: 1.5;
+}
+
+.alerte-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #95a5a6;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================================================
+   RECOMMANDATIONS
+   ============================================================================ */
+
+.recommandations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reco-card {
+  padding: 15px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border-left: 4px solid;
+}
+
+.reco-card.priorite-urgente {
+  border-color: #e74c3c;
+  background: #e74c3c08;
+}
+
+.reco-card.priorite-haute {
+  border-color: #f39c12;
+  background: #f39c1208;
+}
+
+.reco-card.priorite-normale {
+  border-color: #3498db;
+  background: #3498db08;
+}
+
+.reco-card.priorite-basse {
+  border-color: #95a5a6;
+  background: #95a5a608;
+}
+
+.reco-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.reco-badge {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reco-badge.priorite-urgente {
+  background: #e74c3c;
+  color: white;
+}
+
+.reco-badge.priorite-haute {
+  background: #f39c12;
+  color: white;
+}
+
+.reco-badge.priorite-normale {
+  background: #3498db;
+  color: white;
+}
+
+.reco-badge.priorite-basse {
+  background: #95a5a6;
+  color: white;
+}
+
+.reco-date {
+  font-size: 12px;
+  color: #95a5a6;
+}
+
+.reco-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reco-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #34495e;
+}
+
+.reco-item strong {
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+/* ============================================================================
+   MESSAGE SI PAS D'ALERTES
+   ============================================================================ */
+
+.no-issues {
+  text-align: center;
+  padding: 30px;
+  color: #7f8c8d;
+}
+
+.no-issues-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+.no-issues p {
+  margin: 5px 0;
+}
+
+.no-issues-subtitle {
+  font-size: 13px;
+  color: #95a5a6;
+}
+
+/* ============================================================================
+   SCROLLBAR PERSONNALISÉE
+   ============================================================================ */
+
+.popup-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.popup-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.popup-content::-webkit-scrollbar-thumb {
+  background: #bdc3c7;
+  border-radius: 4px;
+}
+
+.popup-content::-webkit-scrollbar-thumb:hover {
+  background: #95a5a6;
+}
+
+/* ============================================================================
+   RESPONSIVE
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .popup-content {
+    max-width: 100%;
+    max-height: 95vh;
+    margin: 10px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .popup-header h2 {
+    font-size: 20px;
+  }
+
+  .stress-icon {
+    font-size: 24px;
+  }
+}

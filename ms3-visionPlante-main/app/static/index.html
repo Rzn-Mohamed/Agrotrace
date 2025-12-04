@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionPlante - Détection de Maladies</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .upload-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 40px;
+            background: #f8f9ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .upload-area:hover {
+            border-color: #2ecc71;
+            background: #f0fff4;
+            transform: translateY(-2px);
+        }
+        
+        .upload-area.dragover {
+            border-color: #2ecc71;
+            background: #d4edda;
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .upload-text {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+        
+        #fileInput {
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .results-section {
+            display: none;
+            margin-top: 40px;
+        }
+        
+        .images-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .image-box {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            background: #f8f9fa;
+        }
+        
+        .image-box h3 {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-size: 1.2em;
+        }
+        
+        .image-box img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .diagnosis-box {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .diagnosis-box.healthy {
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+        }
+        
+        .diagnosis-box.diseased {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        .diagnosis-box h2 {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+        
+        .disease-name {
+            font-size: 1.5em;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .probability {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        
+        .diagnosis-text {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.2em;
+            color: #555;
+        }
+        
+        .error {
+            display: none;
+            background: #fee;
+            border: 2px solid #e74c3c;
+            color: #c0392b;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .preview-image {
+            max-width: 300px;
+            margin: 20px auto;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .images-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 VisionPlante</h1>
+            <p>Détection Intelligente de Maladies des Plantes</p>
+        </div>
+        
+        <div class="content">
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📸</div>
+                    <div class="upload-text">Cliquez ou glissez une image de plante</div>
+                    <div class="upload-hint">Formats acceptés: JPG, PNG (max 10MB)</div>
+                </div>
+                <input type="file" id="fileInput" accept="image/*">
+                <img id="previewImage" class="preview-image">
+                <button class="btn" id="analyzeBtn" style="display:none;">🔍 Analyser la Plante</button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Analyse en cours... Patientez quelques secondes</div>
+            </div>
+            
+            <div class="error" id="error"></div>
+            
+            <div class="results-section" id="results">
+                <div class="diagnosis-box" id="diagnosisBox">
+                    <h2 id="diagnosisTitle">État de la Plante</h2>
+                    <div class="disease-name" id="diseaseName"></div>
+                    <div class="probability" id="probability">--%</div>
+                    <div class="diagnosis-text" id="diagnosisText"></div>
+                </div>
+                
+                <div class="images-container">
+                    <div class="image-box">
+                        <h3>📷 Image Originale</h3>
+                        <img id="originalImage" src="" alt="Image originale">
+                    </div>
+                    <div class="image-box">
+                        <h3>🎭 Zones Détectées</h3>
+                        <img id="maskImage" src="" alt="Masque de détection">
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <button class="btn" onclick="location.reload()">🔄 Analyser une Autre Image</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const previewImage = document.getElementById('previewImage');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const results = document.getElementById('results');
+        
+        let selectedFile = null;
+        
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            handleFile(file);
+        });
+        
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            handleFile(file);
+        });
+        
+        function handleFile(file) {
+            if (!file || !file.type.startsWith('image/')) {
+                showError('Veuillez sélectionner une image valide');
+                return;
+            }
+            
+            if (file.size > 10 * 1024 * 1024) {
+                showError('Le fichier est trop volumineux (max 10MB)');
+                return;
+            }
+            
+            selectedFile = file;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                previewImage.src = e.target.result;
+                previewImage.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+            
+            analyzeBtn.style.display = 'inline-block';
+            error.style.display = 'none';
+        }
+        
+        analyzeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            // Hide previous results and show loading
+            results.style.display = 'none';
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            analyzeBtn.disabled = true;
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                const response = await fetch('/api/v1/upload-and-analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                displayResults(data);
+                
+            } catch (err) {
+                showError(`Erreur lors de l'analyse: ${err.message}`);
+                analyzeBtn.disabled = false;
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+        
+        function displayResults(data) {
+            const probability = data.disease_probability * 100;
+            const isDiseased = probability > 30; // Threshold at 30%
+            
+            // Update diagnosis box
+            const diagnosisBox = document.getElementById('diagnosisBox');
+            diagnosisBox.className = 'diagnosis-box ' + (isDiseased ? 'diseased' : 'healthy');
+            
+            document.getElementById('diagnosisTitle').textContent = 
+                isDiseased ? '⚠️ Maladie Détectée' : '✅ Plante Saine';
+            
+            // Format and display disease name
+            const diseaseNameElement = document.getElementById('diseaseName');
+            if (data.disease_name) {
+                const formatted = data.disease_name
+                    .replace(/___/g, ': ')
+                    .replace(/_/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                    .join(' ');
+                diseaseNameElement.textContent = formatted;
+            } else {
+                diseaseNameElement.textContent = '';
+            }
+            
+            document.getElementById('probability').textContent = 
+                probability.toFixed(1) + '%';
+            
+            document.getElementById('diagnosisText').textContent = 
+                isDiseased 
+                    ? 'Des zones anormales ont été détectées sur votre plante. Consultez le masque pour localiser les zones affectées.'
+                    : 'Votre plante semble en bonne santé. Aucune anomalie majeure détectée.';
+            
+            // Display images
+            document.getElementById('originalImage').src = previewImage.src;
+            
+            // Get mask image from MinIO (we'll need to construct the URL)
+            const maskUrl = `/api/v1/download-mask?key=${encodeURIComponent(data.mask_key)}`;
+            document.getElementById('maskImage').src = maskUrl;
+            
+            // Show results
+            results.style.display = 'block';
+        }
+        
+        function showError(message) {
+            error.textContent = '❌ ' + message;
+            error.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

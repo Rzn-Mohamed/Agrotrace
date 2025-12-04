@@ -1,0 +1,69 @@
+# Model files (too large for git)
+*.pth
+*.pt
+*.h5
+*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Test files
+test_*.py
+*_test.py
+
+# Data (training datasets are too large)
+data/
+*.jpg
+*.jpeg
+*.png
+*.JPG
+*.JPEG
+*.PNG
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# MinIO/Storage
+uploads/
+results/
