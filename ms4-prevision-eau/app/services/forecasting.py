@@ -72,25 +72,85 @@ class ForecastService:
         return df
 
     def _forecast_with_prophet(self, df: pd.DataFrame, horizon_days: int) -> List[Dict]:
-        # Créer une copie et supprimer le timezone pour Prophet
-        series = df[["timestamp", "hydric_stress"]].copy()
-        series["ds"] = pd.to_datetime(series["timestamp"]).dt.tz_localize(None)
-        series = series[["ds", "hydric_stress"]].rename(columns={"hydric_stress": "y"})
-        
-        model = Prophet(
-            seasonality_mode="multiplicative",
-            weekly_seasonality=True,
-            daily_seasonality=True,
-            changepoint_prior_scale=0.05,
-        )
-        model.fit(series)
-        future = model.make_future_dataframe(periods=horizon_days, freq=self._settings.aggregation_frequency)
-        forecast = model.predict(future).tail(horizon_days)
+        try:
+            # Créer une copie et supprimer le timezone pour Prophet
+            series = df[["timestamp", "hydric_stress"]].copy()
+            series["ds"] = pd.to_datetime(series["timestamp"]).dt.tz_localize(None)
+            series = series[["ds", "hydric_stress"]].rename(columns={"hydric_stress": "y"})
+            
+            # Suppress cmdstan logger warnings
+            import logging as prophet_logging
+            prophet_logging.getLogger('cmdstanpy').setLevel(prophet_logging.WARNING)
+            
+            model = Prophet(
+                seasonality_mode="multiplicative",
+                weekly_seasonality=True,
+                daily_seasonality=True,
+                changepoint_prior_scale=0.05,
+            )
+            model.fit(series)
+            future = model.make_future_dataframe(periods=horizon_days, freq=self._settings.aggregation_frequency)
+            forecast = model.predict(future).tail(horizon_days)
+            
+            results = []
+            base_soil = df["soil_moisture_pct"].iloc[-1]
+            for _, row in forecast.iterrows():
+                stress = float(np.clip(row["yhat"], 0, 100))
+                soil = float(np.clip(base_soil - (stress * 0.3), 5, 100))
+                need = float(
+                    max(
+                        0.0,
+                        (stress - self._settings.irrigation_threshold)
+                        / (100 - self._settings.irrigation_threshold)
+                        * self._settings.irrigation_max_mm,
+                    )
+                )
+                # Convertir le timestamp pandas en datetime Python
+                ts = row["ds"]
+                if isinstance(ts, pd.Timestamp):
+                    ts = ts.to_pydatetime()
+                elif isinstance(ts, str):
+                    ts = pd.to_datetime(ts).to_pydatetime()
+                
+                results.append(
+                    {
+                        "timestamp": ts,
+                        "hydric_stress": stress,
+                        "soil_moisture": soil,
+                        "irrigation_need_mm": need,
+                        "confidence": {
+                            "lower": float(np.clip(row["yhat_lower"], 0, 100)),
+                            "upper": float(np.clip(row["yhat_upper"], 0, 100)),
+                        },
+                    }
+                )
+            return results
+        except Exception as e:
+            logger.warning(f"Prophet forecasting failed: {e}. Falling back to simple trend extrapolation.")
+            # Fallback: simple linear trend extrapolation
+            return self._simple_trend_forecast(df, horizon_days)
 
-        results = []
+    def _simple_trend_forecast(self, df: pd.DataFrame, horizon_days: int) -> List[Dict]:
+        """Simple trend-based forecast as fallback when Prophet fails."""
+        # Calculate simple linear trend from recent data
+        recent = df.tail(48)  # Last 48 hours
+        stress_values = recent["hydric_stress"].values
+        
+        # Simple linear regression
+        x = np.arange(len(stress_values))
+        slope = (stress_values[-1] - stress_values[0]) / len(stress_values) if len(stress_values) > 1 else 0
+        
+        offset = to_offset(self._settings.aggregation_frequency)
+        start_ts = df["timestamp"].iloc[-1] + offset
+        timestamps = pd.date_range(start=start_ts, periods=horizon_days, freq=offset)
+        
         base_soil = df["soil_moisture_pct"].iloc[-1]
-        for _, row in forecast.iterrows():
-            stress = float(np.clip(row["yhat"], 0, 100))
+        base_stress = stress_values[-1]
+        
+        results = []
+        for i, ts in enumerate(timestamps):
+            # Project stress forward with dampening
+            stress = float(np.clip(base_stress + (slope * (i + 1) * 0.5), 0, 100))
             soil = float(np.clip(base_soil - (stress * 0.3), 5, 100))
             need = float(
                 max(
@@ -100,22 +160,18 @@ class ForecastService:
                     * self._settings.irrigation_max_mm,
                 )
             )
-            # Convertir le timestamp pandas en datetime Python
-            ts = row["ds"]
-            if isinstance(ts, pd.Timestamp):
-                ts = ts.to_pydatetime()
-            elif isinstance(ts, str):
-                ts = pd.to_datetime(ts).to_pydatetime()
+            
+            ts_dt = ts.to_pydatetime() if isinstance(ts, pd.Timestamp) else ts
             
             results.append(
                 {
-                    "timestamp": ts,
+                    "timestamp": ts_dt,
                     "hydric_stress": stress,
                     "soil_moisture": soil,
                     "irrigation_need_mm": need,
                     "confidence": {
-                        "lower": float(np.clip(row["yhat_lower"], 0, 100)),
-                        "upper": float(np.clip(row["yhat_upper"], 0, 100)),
+                        "lower": max(stress - 10, 0),
+                        "upper": min(stress + 10, 100),
                     },
                 }
             )

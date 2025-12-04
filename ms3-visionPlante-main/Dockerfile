@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Using --no-cache-dir to keep image small
 RUN pip install --upgrade pip
 
-RUN pip install --no-cache-dir --default-timeout=1000 torch==2.1.2+cpu torchvision==0.16.2+cpu --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --default-timeout=1000 torch==2.1.2 torchvision==0.16.2
 
 COPY requirements.txt .
 

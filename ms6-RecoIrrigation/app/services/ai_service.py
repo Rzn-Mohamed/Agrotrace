@@ -162,7 +162,7 @@ Génère maintenant ton analyse:"""
                             "temperature": 0.3,  # Basse température pour cohérence
                             "topK": 40,
                             "topP": 0.95,
-                            "maxOutputTokens": 1024,
+                            "maxOutputTokens": 4096,  # Augmenté pour réponses complètes
                         }
                     }
                     
@@ -176,6 +176,7 @@ Génère maintenant ton analyse:"""
                         result = response.json()
                         # Extraction du texte généré
                         try:
+                            print(f"DEBUG - Gemini response: {json.dumps(result, indent=2)}")
                             generated_text = result["candidates"][0]["content"]["parts"][0]["text"]
                             # Nettoyage du JSON (enlever markdown si présent)
                             if "```json" in generated_text:
@@ -189,6 +190,7 @@ Génère maintenant ton analyse:"""
                             return ai_response
                         except (KeyError, IndexError, json.JSONDecodeError) as e:
                             print(f"Erreur parsing réponse Gemini: {e}")
+                            print(f"Response structure: {json.dumps(result, indent=2)}")
                             return self._create_fallback_response(scientific_result)
                     else:
                         print(f"Erreur API Gemini: {response.status_code} - {response.text}")

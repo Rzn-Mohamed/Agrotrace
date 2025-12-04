@@ -1,5 +1,6 @@
 """Repository PostgreSQL pour les référentiels agricoles."""
 
+import json
 import logging
 from contextlib import contextmanager
 from typing import Dict, Optional
@@ -99,6 +100,9 @@ class AgriculturalRepository:
         try:
             with self._get_connection() as conn:
                 with conn.cursor() as cursor:
+                    # Convert parameters dict to JSON string
+                    parameters_json = json.dumps(recommendation.get("parameters")) if recommendation.get("parameters") else None
+                    
                     cursor.execute("""
                         INSERT INTO recommandations_historique 
                         (parcelle_id, capteur_id, rule_id, priority, title, message, action, parameters)
@@ -111,7 +115,7 @@ class AgriculturalRepository:
                         recommendation.get("title"),
                         recommendation.get("message"),
                         recommendation.get("action"),
-                        recommendation.get("parameters"),
+                        parameters_json,
                     ))
                     conn.commit()
                     logger.debug(f"Recommandation sauvegardée pour {parcelle_id}")
