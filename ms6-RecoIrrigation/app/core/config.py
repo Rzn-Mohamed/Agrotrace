@@ -1,4 +1,8 @@
 # app/core/config.py
+# ==============================================================================
+# MS6 RecoIrrigation - Configuration
+# AgroTrace-MS - Environment-based configuration (no hardcoded credentials)
+# ==============================================================================
 import os
 from pydantic_settings import BaseSettings
 from pydantic import Field
@@ -7,10 +11,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AgroTrace - RecoIrrigation"
     VERSION: str = "1.0.0"
     
-    # Par défaut on tape sur localhost, mais Docker surchargera ça
-    POSTGRES_USER: str = Field(default="postgres")
-    POSTGRES_PASSWORD: str = Field(default="aeztic")
-    POSTGRES_SERVER: str = Field(default="localhost")
+    # Database configuration - values injected via environment variables
+    POSTGRES_USER: str = Field(default="agrotrace_admin")
+    POSTGRES_PASSWORD: str = Field(default="")
+    POSTGRES_SERVER: str = Field(default="timescaledb")
     POSTGRES_DB: str = Field(default="agrotrace_db")
     
     # Configuration LLM pour l'analyse IA

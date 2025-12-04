@@ -17,11 +17,11 @@ class Settings(BaseSettings):
     app_name: str = "AgroTrace PrévisionEau"
     environment: str = Field(default="dev")
 
-    db_host: str = Field(default="localhost")
+    db_host: str = Field(default="timescaledb")
     db_port: int = Field(default=5432)
     db_name: str = Field(default="agrotrace_db")
-    db_user: str = Field(default="admin")
-    db_password: str = Field(default="password")
+    db_user: str = Field(default="agrotrace_admin")
+    db_password: str = Field(default="")
     db_sslmode: str = Field(default="prefer")
 
     default_horizon_days: int = Field(default=5, ge=1, le=14)
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
 
     # Intégration avec RèglesAgro
     regles_agro_url: str = Field(
-        default="http://localhost:8003",
+        default="http://ms5-regles:8004",
         description="URL de base du microservice RèglesAgro"
     )
     regles_agro_enabled: bool = Field(

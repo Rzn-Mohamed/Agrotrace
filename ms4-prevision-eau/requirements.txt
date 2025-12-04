@@ -1,12 +1,18 @@
-fastapi
-uvicorn
-pandas
-numpy
-prophet
-torch
-psycopg2-binary
-pydantic-settings
-scikit-learn
-pytest
-requests
-urllib3
+# ==============================================================================
+# MS4 - Prevision Eau Requirements
+# AgroTrace-MS - Water Prediction Service
+# ==============================================================================
+fastapi==0.109.2
+uvicorn==0.27.1
+pandas==2.2.0
+numpy==1.26.4
+prophet==1.1.5
+torch==2.1.2
+psycopg2-binary==2.9.9
+pydantic==2.6.1
+pydantic-settings==2.1.0
+scikit-learn==1.4.0
+pytest==8.0.0
+requests==2.31.0
+urllib3==2.2.0
+python-dotenv==1.0.1

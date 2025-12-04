@@ -8,6 +8,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build argument for API URL (can be overridden at build time)
+ARG VITE_API_URL=http://localhost:8006/api
+ENV VITE_API_URL=${VITE_API_URL}
+
 # Copie des fichiers de dépendances
 COPY package*.json ./
 
@@ -38,3 +42,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Démarrage de Nginx
 CMD ["nginx", "-g", "daemon off;"]
+

@@ -29,3 +29,12 @@ app.include_router(irrigation.router, prefix="/api/v1/irrigation", tags=["Irriga
 @app.get("/")
 def root():
     return {"message": "AgroTrace RecoIrrigation Service is running"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint for container orchestration."""
+    return {
+        "status": "healthy",
+        "service": "ms6-reco-irrigation",
+        "version": settings.VERSION
+    }

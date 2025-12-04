@@ -21,7 +21,7 @@ WORKDIR /app
 
 # Variables d'environnement
 ENV NODE_ENV=production
-ENV PORT=3001
+# PORT will be set by docker-compose (default: 8006)
 
 # Création d'un utilisateur non-root pour la sécurité
 RUN addgroup -g 1001 -S nodejs && \
@@ -36,12 +36,12 @@ COPY --chown=nodejs:nodejs . .
 # Changement vers l'utilisateur non-root
 USER nodejs
 
-# Exposition du port
-EXPOSE 3001
+# Exposition du port (can be overridden)
+EXPOSE 8006
 
-# Health check
+# Health check (uses PORT env var)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || 8006) + '/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Démarrage de l'application
 CMD ["node", "src/server.js"]

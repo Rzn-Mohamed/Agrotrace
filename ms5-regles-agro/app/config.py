@@ -18,11 +18,11 @@ class Settings(BaseSettings):
     environment: str = Field(default="dev")
 
     # PostgreSQL pour les référentiels agricoles
-    db_host: str = Field(default="localhost")
+    db_host: str = Field(default="timescaledb")
     db_port: int = Field(default=5432)
     db_name: str = Field(default="agrotrace_db")
-    db_user: str = Field(default="admin")
-    db_password: str = Field(default="password")
+    db_user: str = Field(default="agrotrace_admin")
+    db_password: str = Field(default="")
     db_sslmode: str = Field(default="prefer")
 
     # Seuils pour les règles agronomiques
