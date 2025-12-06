@@ -13,6 +13,15 @@ import {
   getStats,
   appliquerRecommandation
 } from '../controllers/parcelleController.js';
+import { 
+  checkMicroservicesHealth,
+  enrichParcelWithMicroservicesData,
+  getWaterPrediction,
+  getAgroRulesEvaluation,
+  getAIRecommendations,
+  getIrrigationHistoryFromMS6,
+  getSensorHistory
+} from '../services/microservicesIntegration.js';
 
 const router = express.Router();
 
@@ -97,6 +106,210 @@ router.get('/health', (req, res) => {
     service: 'DashboardSIG-API',
     version: '1.0.0'
   });
+});
+
+// ============================================================================
+// ALIAS & INTEGRATION ENDPOINTS
+// ============================================================================
+
+/**
+ * @route   GET /api/parcels
+ * @desc    Alias anglais pour /api/parcelles (compatibilité scripts)
+ * @access  Public
+ */
+router.get('/parcels', getParcelles);
+
+/**
+ * @route   POST /api/parcels
+ * @desc    Reçoit les données de parcelles depuis les microservices upstream
+ * @access  Public
+ */
+router.post('/parcels', async (req, res) => {
+  try {
+    // Pour l'instant, on acknowledge simplement la réception
+    // TODO: Implémenter la logique de stockage/mise à jour
+    console.log('[MS6->MS7] Received parcel data:', JSON.stringify(req.body, null, 2));
+    res.status(200).json({ 
+      status: 'received',
+      message: 'Parcel data received successfully',
+      id: req.body.id 
+    });
+  } catch (error) {
+    console.error('Error receiving parcel data:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// MICROSERVICES INTEGRATION ROUTES
+// ============================================================================
+
+/**
+ * @route   GET /api/microservices/health
+ * @desc    Check health status of all upstream microservices
+ * @access  Public
+ */
+router.get('/microservices/health', async (req, res) => {
+  try {
+    const healthStatus = await checkMicroservicesHealth();
+    res.json(healthStatus);
+  } catch (error) {
+    console.error('Error checking microservices health:', error);
+    res.status(500).json({ error: 'Failed to check microservices health' });
+  }
+});
+
+/**
+ * @route   GET /api/parcelles/:id/enriched
+ * @desc    Get parcel data enriched with all microservices data
+ * @access  Public
+ */
+router.get('/parcelles/:id/enriched', async (req, res) => {
+  try {
+    const { id } = req.params;
+    // First get base parcel data
+    const { query } = await import('../config/database.js');
+    const result = await query(`
+      SELECT 
+        p.id, p.nom, p.culture, p.superficie_ha, p.date_semis,
+        p.stress_hydrique, p.niveau_stress, p.besoin_eau_mm,
+        p.derniere_irrigation, p.geometry_json::json as geometry
+      FROM parcelles_simple p
+      WHERE p.id = $1
+    `, [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Parcelle non trouvée' });
+    }
+    
+    const baseParcel = result.rows[0];
+    const enrichedParcel = await enrichParcelWithMicroservicesData(baseParcel);
+    res.json(enrichedParcel);
+  } catch (error) {
+    console.error('Error getting enriched parcel:', error);
+    res.status(500).json({ error: 'Failed to enrich parcel data' });
+  }
+});
+
+/**
+ * @route   GET /api/parcelles/:id/forecast
+ * @desc    Get water stress forecast for a specific parcel from MS4
+ * @access  Public
+ */
+router.get('/parcelles/:id/forecast', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const forecastData = await getWaterPrediction(id);
+    
+    if (!forecastData) {
+      return res.status(503).json({ 
+        error: 'Forecast service unavailable',
+        message: 'MS4 (Water Prediction) is not responding'
+      });
+    }
+    
+    res.json(forecastData);
+  } catch (error) {
+    console.error('Error getting forecast:', error);
+    res.status(500).json({ error: 'Failed to get forecast data' });
+  }
+});
+
+/**
+ * @route   GET /api/parcelles/:id/rules-evaluation
+ * @desc    Get agronomic rules evaluation for a specific parcel from MS5
+ * @access  Public
+ */
+router.get('/parcelles/:id/rules-evaluation', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rulesData = await getAgroRulesEvaluation(id);
+    
+    if (!rulesData) {
+      return res.status(503).json({ 
+        error: 'Rules service unavailable',
+        message: 'MS5 (Agro Rules) is not responding'
+      });
+    }
+    
+    res.json(rulesData);
+  } catch (error) {
+    console.error('Error getting rules evaluation:', error);
+    res.status(500).json({ error: 'Failed to get rules evaluation' });
+  }
+});
+
+/**
+ * @route   GET /api/parcelles/:id/ai-recommendations
+ * @desc    Get AI-based irrigation recommendations for a specific parcel from MS6
+ * @access  Public
+ */
+router.get('/parcelles/:id/ai-recommendations', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const aiRecoData = await getAIRecommendations(id);
+    
+    if (!aiRecoData) {
+      return res.status(503).json({ 
+        error: 'AI recommendation service unavailable',
+        message: 'MS6 (AI Recommendations) is not responding'
+      });
+    }
+    
+    res.json(aiRecoData);
+  } catch (error) {
+    console.error('Error getting AI recommendations:', error);
+    res.status(500).json({ error: 'Failed to get AI recommendations' });
+  }
+});
+
+/**
+ * @route   GET /api/parcelles/:id/irrigation-history
+ * @desc    Get irrigation history for a specific parcel from MS6
+ * @access  Public
+ */
+router.get('/parcelles/:id/irrigation-history', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const historyData = await getIrrigationHistoryFromMS6(id);
+    
+    if (!historyData) {
+      return res.status(503).json({ 
+        error: 'Irrigation history service unavailable',
+        message: 'MS6 is not responding'
+      });
+    }
+    
+    res.json(historyData);
+  } catch (error) {
+    console.error('Error getting irrigation history:', error);
+    res.status(500).json({ error: 'Failed to get irrigation history' });
+  }
+});
+
+/**
+ * @route   GET /api/sensors/:sensorId/history
+ * @desc    Get sensor data history from MS4
+ * @access  Public
+ */
+router.get('/sensors/:sensorId/history', async (req, res) => {
+  try {
+    const { sensorId } = req.params;
+    const { days = 7 } = req.query;
+    const sensorData = await getSensorHistory(sensorId, parseInt(days));
+    
+    if (!sensorData) {
+      return res.status(503).json({ 
+        error: 'Sensor data service unavailable',
+        message: 'MS4 is not responding'
+      });
+    }
+    
+    res.json(sensorData);
+  } catch (error) {
+    console.error('Error getting sensor history:', error);
+    res.status(500).json({ error: 'Failed to get sensor history' });
+  }
 });
 
 export default router;

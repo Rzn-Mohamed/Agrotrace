@@ -4,6 +4,7 @@
  */
 
 import { query } from '../config/database.js';
+import { enrichParcelWithMicroservicesData } from '../services/microservicesIntegration.js';
 
 /**
  * GET /api/parcelles
@@ -15,39 +16,43 @@ export const getParcelles = async (req, res) => {
       SELECT 
         json_build_object(
           'type', 'FeatureCollection',
-          'features', json_agg(
+          'features', COALESCE(json_agg(
             json_build_object(
               'type', 'Feature',
-              'id', p.id,
-              'geometry', ST_AsGeoJSON(p.geometry)::json,
+              'id', parcelle_data.id,
+              'geometry', parcelle_data.geometry_json::json,
               'properties', json_build_object(
-                'id', p.id,
-                'nom', p.nom,
-                'culture', p.culture,
-                'superficie_ha', p.superficie_ha,
-                'date_semis', p.date_semis,
-                'stress_hydrique', p.stress_hydrique,
-                'niveau_stress', p.niveau_stress,
-                'besoin_eau_mm', p.besoin_eau_mm,
-                'derniere_irrigation', p.derniere_irrigation,
-                'nb_alertes', COALESCE(a.nb_alertes, 0),
-                'nb_recommandations', COALESCE(r.nb_reco, 0)
+                'id', parcelle_data.id,
+                'nom', parcelle_data.nom,
+                'culture', parcelle_data.culture,
+                'superficie_ha', parcelle_data.superficie_ha,
+                'date_semis', parcelle_data.date_semis,
+                'stress_hydrique', parcelle_data.stress_hydrique,
+                'niveau_stress', parcelle_data.niveau_stress,
+                'besoin_eau_mm', parcelle_data.besoin_eau_mm,
+                'derniere_irrigation', parcelle_data.derniere_irrigation,
+                'nb_alertes', parcelle_data.nb_alertes,
+                'nb_recommandations', parcelle_data.nb_reco
               )
             )
-          )
+          ), '[]'::json)
         ) as geojson
-      FROM parcelles p
-      LEFT JOIN (
-        SELECT parcelle_id, COUNT(*) as nb_alertes 
-        FROM alertes_maladies 
-        GROUP BY parcelle_id
-      ) a ON p.id = a.parcelle_id
-      LEFT JOIN (
-        SELECT parcelle_id, COUNT(*) as nb_reco 
-        FROM recommandations_irrigation 
-        WHERE appliquee = false
-        GROUP BY parcelle_id
-      ) r ON p.id = r.parcelle_id
+      FROM (
+        SELECT 
+          p.id,
+          p.nom,
+          p.culture,
+          p.superficie_ha,
+          p.date_semis,
+          p.stress_hydrique,
+          p.niveau_stress,
+          p.besoin_eau_mm,
+          p.derniere_irrigation,
+          p.geometry_json,
+          0 as nb_alertes,
+          0 as nb_reco
+        FROM parcelles_simple p
+      ) parcelle_data
     `);
 
     res.json(result.rows[0].geojson);
@@ -63,9 +68,11 @@ export const getParcelles = async (req, res) => {
 /**
  * GET /api/parcelles/:id
  * Retourne une parcelle spécifique avec tous ses détails
+ * Optionally enriches with microservices data if ?enrich=true
  */
 export const getParcelleById = async (req, res) => {
   const { id } = req.params;
+  const { enrich } = req.query;
 
   try {
     const result = await query(`
@@ -79,7 +86,7 @@ export const getParcelleById = async (req, res) => {
         p.niveau_stress,
         p.besoin_eau_mm,
         p.derniere_irrigation,
-        ST_AsGeoJSON(p.geometry)::json as geometry,
+        p.geometry_json::json as geometry,
         COALESCE(
           (SELECT json_agg(
             json_build_object(
@@ -98,16 +105,16 @@ export const getParcelleById = async (req, res) => {
             json_build_object(
               'id', r.id,
               'volume_mm', r.volume_mm,
-              'duree_minutes', r.duree_minutes,
-              'heure_optimale', r.heure_optimale,
-              'priorite', r.priorite,
-              'date_recommandation', r.date_recommandation,
-              'appliquee', r.appliquee
+              'duration_minutes', r.duration_minutes,
+              'optimal_time', r.optimal_time,
+              'priority', r.priority,
+              'recommendation_date', r.recommendation_date,
+              'applied', r.applied
             )
-          ) FROM recommandations_irrigation r WHERE r.parcelle_id = p.id AND r.appliquee = false),
+          ) FROM irrigation_recommendations r WHERE r.parcelle_id = p.id AND r.applied = false),
           '[]'::json
         ) as recommandations
-      FROM parcelles p
+      FROM parcelles_simple p
       WHERE p.id = $1
     `, [id]);
 
@@ -115,7 +122,14 @@ export const getParcelleById = async (req, res) => {
       return res.status(404).json({ error: 'Parcelle non trouvée' });
     }
 
-    res.json(result.rows[0]);
+    let parcelData = result.rows[0];
+    
+    // Enrich with microservices data if requested
+    if (enrich === 'true') {
+      parcelData = await enrichParcelWithMicroservicesData(parcelData);
+    }
+
+    res.json(parcelData);
   } catch (error) {
     console.error('Erreur lors de la récupération de la parcelle:', error);
     res.status(500).json({ 
@@ -155,7 +169,7 @@ export const getEtatHydrique = async (req, res) => {
           'temperature_surface', ROUND((RANDOM() * 8 + 20)::numeric, 2),
           'derniere_acquisition', NOW() - interval '2 hours'
         ) as donnees_drone
-      FROM parcelles p
+      FROM parcelles_simple p
       ORDER BY p.niveau_stress DESC
     `);
 
@@ -225,27 +239,27 @@ export const getRecommandations = async (req, res) => {
       SELECT 
         r.id,
         r.volume_mm,
-        r.duree_minutes,
-        r.heure_optimale,
-        r.priorite,
-        r.date_recommandation,
+        r.duration_minutes,
+        r.optimal_time,
+        r.priority,
+        r.recommendation_date,
         json_build_object(
           'id', p.id,
           'nom', p.nom,
           'culture', p.culture,
           'superficie_ha', p.superficie_ha
         ) as parcelle
-      FROM recommandations_irrigation r
-      JOIN parcelles p ON r.parcelle_id = p.id
-      WHERE r.appliquee = false
+      FROM irrigation_recommendations r
+      JOIN parcelles_simple p ON r.parcelle_id = p.id
+      WHERE r.applied = false
       ORDER BY 
-        CASE r.priorite
-          WHEN 'URGENTE' THEN 1
-          WHEN 'HAUTE' THEN 2
-          WHEN 'NORMALE' THEN 3
-          WHEN 'BASSE' THEN 4
+        CASE r.priority
+          WHEN 'URGENT' THEN 1
+          WHEN 'HIGH' THEN 2
+          WHEN 'MEDIUM' THEN 3
+          WHEN 'LOW' THEN 4
         END,
-        r.date_recommandation DESC
+        r.recommendation_date DESC
     `);
 
     res.json({
@@ -276,7 +290,7 @@ export const getStats = async (req, res) => {
         COUNT(CASE WHEN stress_hydrique = 'OK' THEN 1 END) as parcelles_ok,
         ROUND(AVG(niveau_stress)::numeric, 2) as stress_moyen,
         ROUND(SUM(besoin_eau_mm * superficie_ha)::numeric, 2) as volume_eau_total_mm
-      FROM parcelles
+      FROM parcelles_simple
     `);
 
     const alertesResult = await query(`
@@ -287,9 +301,9 @@ export const getStats = async (req, res) => {
 
     const recoResult = await query(`
       SELECT COUNT(*) as total_recommandations,
-        COUNT(CASE WHEN priorite = 'URGENTE' THEN 1 END) as reco_urgentes
-      FROM recommandations_irrigation
-      WHERE appliquee = false
+        COUNT(CASE WHEN priority = 'URGENT' THEN 1 END) as reco_urgentes
+      FROM irrigation_recommendations
+      WHERE applied = false
     `);
 
     res.json({
@@ -316,8 +330,8 @@ export const appliquerRecommandation = async (req, res) => {
 
   try {
     const result = await query(`
-      UPDATE recommandations_irrigation
-      SET appliquee = true
+      UPDATE irrigation_recommendations
+      SET applied = true, applied_at = NOW()
       WHERE id = $1
       RETURNING *
     `, [id]);

@@ -12,7 +12,6 @@ networks:
 
 volumes:
   timescale_data:
-  postgis_data:
   minio_data:
   kafka_data:
   zookeeper_data:
@@ -87,31 +86,9 @@ services:
       POSTGRES_DB: ${TIMESCALE_DB:-agrotrace_db}
     volumes:
       - timescale_data:/var/lib/postgresql/data
+      - ./database/init_unified.sql:/docker-entrypoint-initdb.d/init_unified.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-agrotrace_admin} -d ${TIMESCALE_DB:-agrotrace_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
-  postgis:
-    image: postgis/postgis:16-3.4-alpine
-    container_name: agrotrace-postgis
-    hostname: postgis
-    networks:
-      - agro-net
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_USER: ${POSTGIS_USER:-agrotrace_gis}
-      POSTGRES_PASSWORD: ${POSTGIS_PASSWORD:-G1sSecure2024!@#}
-      POSTGRES_DB: ${POSTGIS_DB:-agrotrace_sig}
-      PGDATA: /var/lib/postgresql/data/pgdata
-    volumes:
-      - postgis_data:/var/lib/postgresql/data
-      - ./ms7-DashboardSIG/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGIS_USER:-agrotrace_gis} -d ${POSTGIS_DB:-agrotrace_sig}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -388,18 +365,23 @@ services:
     networks:
       - agro-net
     depends_on:
-      postgis:
+      timescaledb:
         condition: service_healthy
     ports:
       - "${MS7_BACKEND_PORT:-8006}:8006"
     environment:
       PORT: 8006
-      DB_HOST: postgis
+      DB_HOST: timescaledb
       DB_PORT: 5432
-      DB_NAME: ${POSTGIS_DB:-agrotrace_sig}
-      DB_USER: ${POSTGIS_USER:-agrotrace_gis}
-      DB_PASSWORD: ${POSTGIS_PASSWORD:-G1sSecure2024!@#}
+      DB_NAME: ${TIMESCALE_DB:-agrotrace_db}
+      DB_USER: ${TIMESCALE_USER:-agrotrace_admin}
+      DB_PASSWORD: ${TIMESCALE_PASSWORD:-Agr0Tr@ce2024!Secure}
       FRONTEND_URL: http://localhost:${MS7_FRONTEND_PORT:-8080}
+      # Microservices URLs for integration
+      MS3_URL: http://ms3-vision:8002
+      MS4_URL: http://ms4-prevision:8003
+      MS5_URL: http://ms5-regles:8004
+      MS6_URL: http://ms6-reco:8005
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8006/api/health"]
       interval: 30s

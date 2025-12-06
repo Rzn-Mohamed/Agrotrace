@@ -149,4 +149,101 @@ export const checkHealth = async () => {
   }
 };
 
+// ============================================================================
+// MICROSERVICES INTEGRATION
+// ============================================================================
+
+/**
+ * Vérifie l'état de santé de tous les microservices
+ */
+export const getMicroservicesHealth = async () => {
+  try {
+    const response = await api.get('/microservices/health');
+    return response.data;
+  } catch (error) {
+    console.error('Erreur lors de la vérification des microservices:', error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère une parcelle enrichie avec toutes les données des microservices
+ */
+export const getEnrichedParcel = async (id) => {
+  try {
+    const response = await api.get(`/parcelles/${id}/enriched`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération de la parcelle enrichie ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère les prévisions de stress hydrique depuis MS4
+ */
+export const getWaterForecast = async (parcelId) => {
+  try {
+    const response = await api.get(`/parcelles/${parcelId}/forecast`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des prévisions pour la parcelle ${parcelId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère l'évaluation des règles agronomiques depuis MS5
+ */
+export const getAgroRules = async (parcelId) => {
+  try {
+    const response = await api.get(`/parcelles/${parcelId}/rules-evaluation`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des règles agro pour la parcelle ${parcelId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère les recommandations IA depuis MS6
+ */
+export const getAIRecommendations = async (parcelId) => {
+  try {
+    const response = await api.get(`/parcelles/${parcelId}/ai-recommendations`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération des recommandations IA pour la parcelle ${parcelId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère l'historique d'irrigation depuis MS6
+ */
+export const getIrrigationHistory = async (parcelId) => {
+  try {
+    const response = await api.get(`/parcelles/${parcelId}/irrigation-history`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération de l'historique d'irrigation pour la parcelle ${parcelId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Récupère l'historique des données capteurs depuis MS4
+ */
+export const getSensorHistory = async (sensorId, days = 7) => {
+  try {
+    const response = await api.get(`/sensors/${sensorId}/history`, {
+      params: { days }
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Erreur lors de la récupération de l'historique du capteur ${sensorId}:`, error);
+    throw error;
+  }
+};
+
 export default api;

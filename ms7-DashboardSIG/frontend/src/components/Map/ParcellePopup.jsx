@@ -9,11 +9,16 @@
  * - Recommandations d'irrigation
  */
 
-import React from 'react';
-import { X, Droplet, AlertTriangle, MapPin, Calendar, TrendingUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Droplet, AlertTriangle, MapPin, Calendar, TrendingUp, Activity, Brain, Sprout } from 'lucide-react';
 import './ParcellePopup.css';
+import WaterForecastPanel from '../ParcelDetails/panels/WaterForecastPanel';
+import AIRecommendationsPanel from '../ParcelDetails/panels/AIRecommendationsPanel';
+import AgroRulesPanel from '../ParcelDetails/panels/AgroRulesPanel';
 
 const ParcellePopup = ({ parcelle, onClose }) => {
+  const [activeTab, setActiveTab] = useState('info');
+  
   if (!parcelle) return null;
 
   const {
@@ -98,9 +103,43 @@ const ParcellePopup = ({ parcelle, onClose }) => {
           </button>
         </div>
 
+        {/* Tabs Navigation */}
+        <div className="popup-tabs">
+          <button 
+            className={`tab-button ${activeTab === 'info' ? 'active' : ''}`}
+            onClick={() => setActiveTab('info')}
+          >
+            <MapPin size={16} />
+            Informations
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'forecast' ? 'active' : ''}`}
+            onClick={() => setActiveTab('forecast')}
+          >
+            <Activity size={16} />
+            Prévisions MS4
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'ai' ? 'active' : ''}`}
+            onClick={() => setActiveTab('ai')}
+          >
+            <Brain size={16} />
+            IA MS6
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'rules' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rules')}
+          >
+            <Sprout size={16} />
+            Règles MS5
+          </button>
+        </div>
+
         {/* Corps principal */}
         <div className="popup-body">
-          {/* Informations générales */}
+          {/* Tab: Informations générales */}
+          {activeTab === 'info' && (
+            <>
           <section className="popup-section">
             <h3><MapPin size={18} /> Informations Générales</h3>
             <div className="info-grid">
@@ -219,6 +258,41 @@ const ParcellePopup = ({ parcelle, onClose }) => {
               <span className="no-issues-icon">✅</span>
               <p>Aucune alerte ou recommandation pour cette parcelle</p>
               <p className="no-issues-subtitle">La parcelle est en bon état</p>
+            </div>
+          )}
+          </>
+          )}
+
+          {/* Tab: Water Forecast from MS4 */}
+          {activeTab === 'forecast' && (
+            <div className="microservice-panel">
+              <div className="panel-header">
+                <h3>📊 Prévisions de Stress Hydrique (MS4)</h3>
+                <p className="panel-subtitle">Service de prévision du stress hydrique sur 7 jours</p>
+              </div>
+              <WaterForecastPanel parcelId={id} />
+            </div>
+          )}
+
+          {/* Tab: AI Recommendations from MS6 */}
+          {activeTab === 'ai' && (
+            <div className="microservice-panel">
+              <div className="panel-header">
+                <h3>🤖 Recommandations IA d'Irrigation (MS6)</h3>
+                <p className="panel-subtitle">Intelligence artificielle pour l'optimisation de l'irrigation</p>
+              </div>
+              <AIRecommendationsPanel parcelId={id} />
+            </div>
+          )}
+
+          {/* Tab: Agro Rules from MS5 */}
+          {activeTab === 'rules' && (
+            <div className="microservice-panel">
+              <div className="panel-header">
+                <h3>🌾 Évaluation des Règles Agronomiques (MS5)</h3>
+                <p className="panel-subtitle">Règles métier et recommandations agronomiques</p>
+              </div>
+              <AgroRulesPanel parcelId={id} />
             </div>
           )}
         </div>
