@@ -223,7 +223,17 @@ router.get('/parcelles/:id/forecast', async (req, res) => {
 router.get('/parcelles/:id/rules-evaluation', async (req, res) => {
   try {
     const { id } = req.params;
-    const rulesData = await getAgroRulesEvaluation(id);
+    
+    // Use default parcel data for MS5 (we'll enhance this later to fetch real data)
+    const parcelData = {
+      culture: 'Ble',
+      superficie_ha: 10.0,
+      stress_hydrique: 0.5,
+      stade_culture: 'croissance',
+      jours_depuis_irrigation: 3
+    };
+    
+    const rulesData = await getAgroRulesEvaluation(id, parcelData);
     
     if (!rulesData) {
       return res.status(503).json({ 
@@ -247,7 +257,18 @@ router.get('/parcelles/:id/rules-evaluation', async (req, res) => {
 router.get('/parcelles/:id/ai-recommendations', async (req, res) => {
   try {
     const { id } = req.params;
-    const aiRecoData = await getAIRecommendations(id);
+    
+    // Use default parcel data for MS6 (we'll enhance this later to fetch real data)
+    const parcelData = {
+      culture: 'Ble',
+      superficie_ha: 10.0,
+      stress_hydrique: 0.5,
+      stade_culture: 'croissance',
+      jours_depuis_irrigation: 3,
+      priorite: 'haute'
+    };
+    
+    const aiRecoData = await getAIRecommendations(id, parcelData);
     
     if (!aiRecoData) {
       return res.status(503).json({ 

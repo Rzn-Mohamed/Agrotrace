@@ -85,6 +85,9 @@ export async function getAgroRulesEvaluation(parcelId, parcelData = {}) {
       stress_hydrique_actuel: parcelData.stress_hydrique || 0.5,
       derniere_irrigation_jours: parcelData.jours_depuis_irrigation || 3,
       stade_culture: parcelData.stade_culture || 'croissance',
+      temperature: 25.0,
+      humidite: 60.0,
+      humidite_sol: 45.0,
       meteo_prevision: {
         temperature_moy: 25.0,
         precipitation_mm: 0.0,
@@ -123,14 +126,21 @@ export async function getAIRecommendations(parcelId, parcelData = {}) {
         et0_mm_jour: 4.5,
         temperature_celsius: 25.0,
         humidite_pourcentage: 60.0,
-        precipitation_mm: 0.0
+        precipitation_mm: 0.0,
+        stress_index: parcelData.stress_hydrique || 0.5,
+        temp_max_demain: 28.0,
+        probabilite_pluie: 0.1,
+        evapotranspiration_et0: 4.5
       },
       regles: {
-        priorite: parcelData.priorite || 'haute',
+        priorite: parcelData.priorite === 'haute' ? 'ELEVEE' : parcelData.priorite === 'moyenne' ? 'NORMALE' : 'BASSE',
         stade_culture: parcelData.stade_culture || 'croissance',
-        contraintes: []
+        contraintes: [],
+        contrainte_hydrique: 'modere'
       }
     };
+    
+    console.log(`[MS6] Calling ${MS6_URL}/api/v1/irrigation/recommandation-ia with:`, JSON.stringify(irrigationRequest));
     
     const response = await axios.post(
       `${MS6_URL}/api/v1/irrigation/recommandation-ia`, 
@@ -140,6 +150,8 @@ export async function getAIRecommendations(parcelId, parcelData = {}) {
         validateStatus: (status) => status < 500
       }
     );
+    
+    console.log(`[MS6] Response status: ${response.status}`);
     
     if (response.status === 200) {
       return response.data;
