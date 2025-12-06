@@ -77,21 +77,35 @@ export async function getWaterPrediction(parcelId, capteurId = null) {
  */
 export async function getAgroRulesEvaluation(parcelId, parcelData = {}) {
   try {
+    // Dynamic parameters based on crop type and stress level
+    const stressLevel = parcelData.stress_hydrique || 0.5;
+    const culture = parcelData.culture || 'Ble';
+    
+    // Vary temperature and humidity based on crop needs
+    const tempBase = culture.includes('Tomate') ? 28 : culture.includes('Maïs') ? 26 : culture.includes('Pomme') ? 22 : 24;
+    const humidityBase = culture.includes('Tomate') ? 65 : culture.includes('Maïs') ? 55 : 60;
+    
+    // Soil moisture inversely proportional to stress (stress 0.85 -> soil 15%, stress 0.1 -> soil 65%)
+    const soilMoisture = Math.max(10, 70 - (stressLevel * 60));
+    
+    // Temperature increases with stress
+    const currentTemp = tempBase + (stressLevel * 8); // High stress -> higher temp
+    
     // MS5 uses POST /evaluate with request body
     const evaluationRequest = {
       parcelle_id: String(parcelId),
-      culture_type: parcelData.culture || 'Ble',
+      culture_type: culture,
       superficie_ha: parcelData.superficie_ha || 10.0,
-      stress_hydrique_actuel: parcelData.stress_hydrique || 0.5,
+      stress_hydrique_actuel: stressLevel,
       derniere_irrigation_jours: parcelData.jours_depuis_irrigation || 3,
       stade_culture: parcelData.stade_culture || 'croissance',
-      temperature: 25.0,
-      humidite: 60.0,
-      humidite_sol: 45.0,
+      temperature: currentTemp + (Math.random() * 2 - 1), // +/- 1°C variation
+      humidite: humidityBase - (stressLevel * 15), // Lower humidity with higher stress
+      humidite_sol: soilMoisture,
       meteo_prevision: {
-        temperature_moy: 25.0,
-        precipitation_mm: 0.0,
-        et0_mm: 4.5
+        temperature_moy: tempBase + (stressLevel * 5),
+        precipitation_mm: stressLevel > 0.6 ? 0.0 : Math.random() * 5,
+        et0_mm: 4.0 + (stressLevel * 3) // Higher ET0 with higher stress
       }
     };
     
@@ -118,25 +132,38 @@ export async function getAgroRulesEvaluation(parcelId, parcelData = {}) {
  */
 export async function getAIRecommendations(parcelId, parcelData = {}) {
   try {
+    // Dynamic parameters based on crop type and stress level
+    const stressLevel = parcelData.stress_hydrique || 0.5;
+    const culture = parcelData.culture || 'Ble';
+    
+    // Crop-specific temperature and water requirements
+    const tempBase = culture.includes('Tomate') ? 28 : culture.includes('Maïs') ? 26 : culture.includes('Pomme') ? 22 : 24;
+    const humidityBase = culture.includes('Tomate') ? 65 : culture.includes('Maïs') ? 55 : 60;
+    const et0Base = culture.includes('Tomate') ? 5.5 : culture.includes('Maïs') ? 5.0 : 4.5;
+    
+    // Determine constraint level based on stress
+    const contrainteLevel = stressLevel >= 0.7 ? 'severe' : stressLevel >= 0.4 ? 'modere' : 'faible';
+    const rainProb = stressLevel > 0.6 ? 0.05 : 0.15;
+    
     // MS6 uses POST /api/v1/irrigation/recommandation-ia
     const irrigationRequest = {
       zone_id: parcelId,
-      culture_type: parcelData.culture || 'Ble',
+      culture_type: culture,
       prediction: {
-        et0_mm_jour: 4.5,
-        temperature_celsius: 25.0,
-        humidite_pourcentage: 60.0,
-        precipitation_mm: 0.0,
-        stress_index: parcelData.stress_hydrique || 0.5,
-        temp_max_demain: 28.0,
-        probabilite_pluie: 0.1,
-        evapotranspiration_et0: 4.5
+        et0_mm_jour: et0Base + (stressLevel * 1.5),
+        temperature_celsius: tempBase + (Math.random() * 3 - 1.5),
+        humidite_pourcentage: humidityBase - (stressLevel * 10),
+        precipitation_mm: stressLevel > 0.6 ? 0.0 : Math.random() * 3,
+        stress_index: stressLevel,
+        temp_max_demain: tempBase + 3 + (Math.random() * 2),
+        probabilite_pluie: rainProb,
+        evapotranspiration_et0: et0Base + (stressLevel * 1.5)
       },
       regles: {
         priorite: parcelData.priorite === 'haute' ? 'ELEVEE' : parcelData.priorite === 'moyenne' ? 'NORMALE' : 'BASSE',
         stade_culture: parcelData.stade_culture || 'croissance',
-        contraintes: [],
-        contrainte_hydrique: 'modere'
+        contraintes: stressLevel >= 0.7 ? ['stress_hydrique_severe'] : [],
+        contrainte_hydrique: contrainteLevel
       }
     };
     

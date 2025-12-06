@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import pool from '../config/database.js';
 import {
   getParcelles,
   getParcelleById,
@@ -224,13 +225,27 @@ router.get('/parcelles/:id/rules-evaluation', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Use default parcel data for MS5 (we'll enhance this later to fetch real data)
+    // Fetch real parcel data from database
+    const parcelResult = await pool.query(
+      'SELECT culture, superficie_ha, niveau_stress, date_semis, derniere_irrigation FROM parcelles_simple WHERE id = $1',
+      [id]
+    );
+    
+    if (parcelResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Parcel not found' });
+    }
+    
+    const parcel = parcelResult.rows[0];
+    const joursDepuisIrrigation = parcel.derniere_irrigation 
+      ? Math.floor((new Date() - new Date(parcel.derniere_irrigation)) / (1000 * 60 * 60 * 24))
+      : 5;
+    
     const parcelData = {
-      culture: 'Ble',
-      superficie_ha: 10.0,
-      stress_hydrique: 0.5,
+      culture: parcel.culture || 'Ble',
+      superficie_ha: parcel.superficie_ha || 10.0,
+      stress_hydrique: parcel.niveau_stress || 0.5,
       stade_culture: 'croissance',
-      jours_depuis_irrigation: 3
+      jours_depuis_irrigation: joursDepuisIrrigation
     };
     
     const rulesData = await getAgroRulesEvaluation(id, parcelData);
@@ -258,14 +273,32 @@ router.get('/parcelles/:id/ai-recommendations', async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Use default parcel data for MS6 (we'll enhance this later to fetch real data)
+    // Fetch real parcel data from database
+    const parcelResult = await pool.query(
+      'SELECT culture, superficie_ha, niveau_stress, stress_hydrique, date_semis, derniere_irrigation FROM parcelles_simple WHERE id = $1',
+      [id]
+    );
+    
+    if (parcelResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Parcel not found' });
+    }
+    
+    const parcel = parcelResult.rows[0];
+    const joursDepuisIrrigation = parcel.derniere_irrigation 
+      ? Math.floor((new Date() - new Date(parcel.derniere_irrigation)) / (1000 * 60 * 60 * 24))
+      : 5;
+    
+    // Map stress level to priority
+    const stressLevel = parcel.niveau_stress || 0.5;
+    const priorite = stressLevel >= 0.7 ? 'haute' : stressLevel >= 0.4 ? 'moyenne' : 'basse';
+    
     const parcelData = {
-      culture: 'Ble',
-      superficie_ha: 10.0,
-      stress_hydrique: 0.5,
+      culture: parcel.culture || 'Ble',
+      superficie_ha: parcel.superficie_ha || 10.0,
+      stress_hydrique: parcel.niveau_stress || 0.5,
       stade_culture: 'croissance',
-      jours_depuis_irrigation: 3,
-      priorite: 'haute'
+      jours_depuis_irrigation: joursDepuisIrrigation,
+      priorite: priorite
     };
     
     const aiRecoData = await getAIRecommendations(id, parcelData);
