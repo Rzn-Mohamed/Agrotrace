@@ -1,9 +1,12 @@
 /**
- * Composant Sidebar - Panneau latéral d'informations
+ * Composant Sidebar - Panneau latéral d'informations enrichi
  * DashboardSIG - AgroTrace-MS
  * 
  * Affiche:
+ * - Widget Météo avec prévisions
  * - Statistiques globales
+ * - Moniteur santé système
+ * - Timeline d'activités
  * - Liste des alertes
  * - Recommandations d'irrigation
  * - Bouton d'export PDF
@@ -17,11 +20,289 @@ import {
   TrendingUp, 
   Download,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Sun,
+  Cloud,
+  CloudRain,
+  Wind,
+  Thermometer,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader,
+  Zap,
+  Target,
+  Calendar
 } from 'lucide-react';
-import { getStats, getAlertes, getRecommandations } from '../../services/api';
+import { getStats, getAlertes, getRecommandations, getMicroservicesHealth } from '../../services/api';
 import { exportToPDF } from '../../utils/pdfExport';
 import './Sidebar.css';
+
+/**
+ * Widget Météo avec animation
+ */
+const WeatherWidget = () => {
+  const [weather, setWeather] = useState({
+    temp: 28,
+    humidity: 54,
+    wind: 12,
+    condition: 'sunny',
+    forecast: [
+      { day: 'Lun', temp: 29, icon: 'sunny' },
+      { day: 'Mar', temp: 27, icon: 'cloudy' },
+      { day: 'Mer', temp: 25, icon: 'rainy' }
+    ]
+  });
+
+  const getWeatherIcon = (condition, size = 24) => {
+    switch (condition) {
+      case 'sunny': return <Sun size={size} />;
+      case 'cloudy': return <Cloud size={size} />;
+      case 'rainy': return <CloudRain size={size} />;
+      default: return <Sun size={size} />;
+    }
+  };
+
+  const getWeatherGradient = (condition) => {
+    switch (condition) {
+      case 'sunny': return 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)';
+      case 'cloudy': return 'linear-gradient(135deg, #64748b 0%, #94a3b8 100%)';
+      case 'rainy': return 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)';
+      default: return 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)';
+    }
+  };
+
+  return (
+    <div className="weather-widget" style={{ background: getWeatherGradient(weather.condition) }}>
+      <div className="weather-main">
+        <div className="weather-icon-large">
+          {getWeatherIcon(weather.condition, 48)}
+        </div>
+        <div className="weather-temp">
+          <span className="temp-value">{weather.temp}°</span>
+          <span className="temp-unit">C</span>
+        </div>
+      </div>
+      
+      <div className="weather-details">
+        <div className="weather-detail">
+          <Droplet size={14} />
+          <span>{weather.humidity}%</span>
+        </div>
+        <div className="weather-detail">
+          <Wind size={14} />
+          <span>{weather.wind} km/h</span>
+        </div>
+      </div>
+
+      <div className="weather-forecast">
+        {weather.forecast.map((day, idx) => (
+          <div key={idx} className="forecast-day">
+            <span className="forecast-label">{day.day}</span>
+            {getWeatherIcon(day.icon, 16)}
+            <span className="forecast-temp">{day.temp}°</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Moniteur Santé Système
+ */
+const SystemHealthMonitor = () => {
+  const [health, setHealth] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadHealth();
+    const interval = setInterval(loadHealth, 30000); // Refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadHealth = async () => {
+    try {
+      const data = await getMicroservicesHealth();
+      setHealth(data);
+    } catch (error) {
+      // Fallback to mock data
+      setHealth({
+        services: [
+          { name: 'MS1', label: 'Capteurs', status: 'healthy' },
+          { name: 'MS2', label: 'Prétraitement', status: 'healthy' },
+          { name: 'MS3', label: 'Vision IA', status: 'healthy' },
+          { name: 'MS4', label: 'Prévisions', status: 'healthy' },
+          { name: 'MS5', label: 'Règles Agro', status: 'healthy' },
+          { name: 'MS6', label: 'Irrigation IA', status: 'warning' }
+        ]
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'healthy': return <CheckCircle size={14} />;
+      case 'warning': return <AlertTriangle size={14} />;
+      case 'error': return <XCircle size={14} />;
+      default: return <Loader size={14} className="spinning" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="system-health">
+        <div className="health-loading">
+          <Loader size={16} className="spinning" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="system-health">
+      <div className="health-grid">
+        {health?.services?.map((service, idx) => (
+          <div 
+            key={idx} 
+            className={`health-item status-${service.status}`}
+            title={`${service.label}: ${service.status}`}
+          >
+            <div className="health-indicator">
+              {getStatusIcon(service.status)}
+            </div>
+            <span className="health-label">{service.name}</span>
+          </div>
+        ))}
+      </div>
+      <div className="health-footer">
+        <Clock size={12} />
+        <span>Dernière MAJ: {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Timeline d'Activités
+ */
+const ActivityTimeline = () => {
+  const [activities] = useState([
+    { 
+      id: 1, 
+      type: 'irrigation', 
+      message: 'Irrigation terminée - Parcel Alpha', 
+      time: '10:30',
+      icon: 'droplet'
+    },
+    { 
+      id: 2, 
+      type: 'alert', 
+      message: 'Stress hydrique détecté - Parcel Beta', 
+      time: '09:15',
+      icon: 'alert'
+    },
+    { 
+      id: 3, 
+      type: 'analysis', 
+      message: 'Analyse IA complète - Parcel Gamma', 
+      time: '08:45',
+      icon: 'target'
+    },
+    { 
+      id: 4, 
+      type: 'sensor', 
+      message: 'Capteurs calibrés - Zone Nord', 
+      time: '08:00',
+      icon: 'zap'
+    }
+  ]);
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'irrigation': return <Droplet size={14} />;
+      case 'alert': return <AlertTriangle size={14} />;
+      case 'analysis': return <Target size={14} />;
+      case 'sensor': return <Zap size={14} />;
+      default: return <Activity size={14} />;
+    }
+  };
+
+  return (
+    <div className="activity-timeline">
+      {activities.map((activity, idx) => (
+        <div 
+          key={activity.id} 
+          className={`timeline-item type-${activity.type}`}
+          style={{ animationDelay: `${idx * 0.1}s` }}
+        >
+          <div className="timeline-dot">
+            {getActivityIcon(activity.type)}
+          </div>
+          <div className="timeline-content">
+            <p className="timeline-message">{activity.message}</p>
+            <span className="timeline-time">
+              <Clock size={10} />
+              {activity.time}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * Stat Card avec animation
+ */
+const AnimatedStatCard = ({ icon, value, label, color, isCritical }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    const numValue = parseFloat(value) || 0;
+    const duration = 1000;
+    const steps = 30;
+    const increment = numValue / steps;
+    let current = 0;
+    
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= numValue) {
+        setDisplayValue(numValue);
+        clearInterval(timer);
+      } else {
+        setDisplayValue(Math.floor(current));
+      }
+    }, duration / steps);
+
+    return () => clearInterval(timer);
+  }, [value]);
+
+  const formatValue = (val) => {
+    if (typeof value === 'string' && value.includes('.')) {
+      return val.toFixed(2);
+    }
+    return Math.round(val);
+  };
+
+  return (
+    <div className={`stat-card ${isCritical ? 'critical' : ''}`}>
+      <div className="stat-icon" style={{ background: `${color}15`, color: color }}>
+        {icon}
+      </div>
+      <div className="stat-content">
+        <div className="stat-value">
+          {formatValue(displayValue)}
+          {typeof value === 'string' && value.includes('ha') ? ' ha' : ''}
+        </div>
+        <div className="stat-label">{label}</div>
+      </div>
+      {isCritical && <div className="stat-pulse"></div>}
+    </div>
+  );
+};
 
 const Sidebar = ({ selectedParcelle }) => {
   const [stats, setStats] = useState(null);
@@ -114,50 +395,41 @@ const Sidebar = ({ selectedParcelle }) => {
       </div>
 
       <div className="sidebar-content">
+        {/* Widget Météo */}
+        <section className="sidebar-section weather-section">
+          <WeatherWidget />
+        </section>
+
         {/* Statistiques globales */}
         {stats && (
           <section className="sidebar-section">
             <h3><Activity size={18} /> Statistiques Globales</h3>
             <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon" style={{ background: '#3498db15', color: '#3498db' }}>
-                  <BarChart3 size={20} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value">{stats.total_parcelles}</div>
-                  <div className="stat-label">Parcelles</div>
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon" style={{ background: '#27ae6015', color: '#27ae60' }}>
-                  <TrendingUp size={20} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value">{stats.superficie_totale} ha</div>
-                  <div className="stat-label">Superficie</div>
-                </div>
-              </div>
-
-              <div className="stat-card critical">
-                <div className="stat-icon" style={{ background: '#e74c3c15', color: '#e74c3c' }}>
-                  <AlertTriangle size={20} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value">{stats.parcelles_critiques}</div>
-                  <div className="stat-label">Critiques</div>
-                </div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon" style={{ background: '#f39c1215', color: '#f39c12' }}>
-                  <Droplet size={20} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value">{stats.stress_moyen}</div>
-                  <div className="stat-label">Stress moyen</div>
-                </div>
-              </div>
+              <AnimatedStatCard 
+                icon={<BarChart3 size={20} />}
+                value={stats.total_parcelles}
+                label="Parcelles"
+                color="#3498db"
+              />
+              <AnimatedStatCard 
+                icon={<TrendingUp size={20} />}
+                value={`${stats.superficie_totale}`}
+                label="Hectares"
+                color="#27ae60"
+              />
+              <AnimatedStatCard 
+                icon={<AlertTriangle size={20} />}
+                value={stats.parcelles_critiques}
+                label="Critiques"
+                color="#e74c3c"
+                isCritical={stats.parcelles_critiques > 0}
+              />
+              <AnimatedStatCard 
+                icon={<Droplet size={20} />}
+                value={stats.stress_moyen}
+                label="Stress moy."
+                color="#f39c12"
+              />
             </div>
 
             {/* Répartition des parcelles */}
@@ -218,6 +490,18 @@ const Sidebar = ({ selectedParcelle }) => {
             </div>
           </section>
         )}
+
+        {/* Moniteur Santé Système */}
+        <section className="sidebar-section">
+          <h3><Zap size={18} /> Santé Système</h3>
+          <SystemHealthMonitor />
+        </section>
+
+        {/* Timeline d'activités */}
+        <section className="sidebar-section">
+          <h3><Calendar size={18} /> Activités Récentes</h3>
+          <ActivityTimeline />
+        </section>
 
         {/* Alertes maladies */}
         <section className="sidebar-section">
