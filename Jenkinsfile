@@ -175,16 +175,19 @@ pipeline {
                         script {
                             echo "🔗 Running integration tests..."
                             sh '''
-                                # Start test infrastructure
-                                docker-compose -f docker-compose.yml up -d timescaledb kafka minio
-                                sleep 30
-                                
-                                # Run integration tests
-                                docker-compose -f docker-compose.test.yml up --exit-code-from tests || true
-                                
-                                # Cleanup
-                                docker-compose -f docker-compose.test.yml down -v
-                            '''
+                            # Start test infrastructure
+                            docker-compose -f docker-compose.yml up -d timescaledb kafka minio
+                            
+                            # Wait for services to be ready (health check instead of sleep)
+                            echo "Waiting for infrastructure services..."
+                            timeout 60 bash -c 'until docker-compose exec -T timescaledb pg_isready; do sleep 2; done' || true
+                            
+                            # Run integration tests
+                            docker-compose -f docker-compose.test.yml up --exit-code-from tests || true
+                            
+                            # Cleanup
+                            docker-compose -f docker-compose.test.yml down -v
+                        '''
                         }
                     }
                 }
@@ -273,8 +276,8 @@ pipeline {
                         # Deploy services
                         docker-compose up -d ${CHANGED_SERVICES.join(' ')}
                         
-                        # Wait for health checks
-                        sleep 30
+                        # Wait for containers to start (quick check, verification does health polling)
+                        sleep 5
                         docker-compose ps
                     """
                     
@@ -424,16 +427,23 @@ def runServiceTests(Map service) {
 def buildDockerImage(Map service, String version) {
     def imageName = "agrotrace-${service.name}"
     def imageTag = "${DOCKER_REGISTRY}/${imageName}:${version}"
+    def cacheTag = "${DOCKER_REGISTRY}/${imageName}:cache"
     
     echo "🔨 Building ${imageName}..."
     
     dir(service.path) {
+        // Pull cache image for faster builds (ignore failure if not exists)
+        sh "docker pull ${cacheTag} || true"
+        
         sh """
             docker build \
+                --cache-from ${cacheTag} \
+                --build-arg BUILDKIT_INLINE_CACHE=1 \
                 --build-arg BUILD_DATE=\$(date -u +'%Y-%m-%dT%H:%M:%SZ') \
                 --build-arg VERSION=${version} \
                 --build-arg VCS_REF=${GIT_COMMIT_SHORT} \
                 -t ${imageTag} \
+                -t ${cacheTag} \
                 -f Dockerfile \
                 .
         """
@@ -447,10 +457,15 @@ def verifyDeployment(List services) {
     services.each { serviceName ->
         def service = MICROSERVICES.find { it.name == serviceName }
         if (service && service.port) {
-            retry(5) {
-                sleep 10
-                sh "curl -f http://localhost:${service.port}/health || exit 1"
-            }
+            // Use timeout with faster polling instead of slow retry+sleep
+            sh """
+                timeout 60 bash -c '
+                    until curl -sf http://localhost:${service.port}/health; do
+                        echo "Waiting for ${serviceName}..."
+                        sleep 3
+                    done
+                '
+            """
             echo "✅ ${serviceName} is healthy"
         }
     }
