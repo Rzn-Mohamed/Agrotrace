@@ -42,6 +42,12 @@ def health_check():
     }
 
 
+@app.post("/test")
+def test_post(payload: dict):
+    """Simple test endpoint to verify POST requests work."""
+    return {"message": "POST request received", "payload": payload}
+
+
 @app.get("/capteurs/{capteur_id}/history")
 def get_history(
     capteur_id: str,

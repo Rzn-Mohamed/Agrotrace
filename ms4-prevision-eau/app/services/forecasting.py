@@ -48,15 +48,8 @@ class ForecastService:
         frame = self._load_or_fallback(capteur_id)
         prepared = self._engineer.prepare_training_frame(frame)
 
-        prophet_fc = self._forecast_with_prophet(prepared, horizon)
-        lstm_fc = self._forecast_with_lstm(prepared, horizon)
-
-        if model == "prophet":
-            merged = prophet_fc
-        elif model == "lstm":
-            merged = lstm_fc
-        else:
-            merged = self._blend(prophet_fc, lstm_fc)
+        # Use simple trend forecast directly (Prophet/LSTM too slow)
+        merged = self._simple_trend_forecast(prepared, horizon)
 
         return {
             "capteur_id": capteur_id,
@@ -87,6 +80,9 @@ class ForecastService:
                 weekly_seasonality=True,
                 daily_seasonality=True,
                 changepoint_prior_scale=0.05,
+                # Performance optimizations
+                mcmc_samples=0,  # Use MAP estimation instead of MCMC
+                uncertainty_samples=0,  # Disable uncertainty sampling for speed
             )
             model.fit(series)
             future = model.make_future_dataframe(periods=horizon_days, freq=self._settings.aggregation_frequency)
