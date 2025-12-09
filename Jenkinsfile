@@ -5,7 +5,9 @@
 // Supports parallel execution and intelligent dependency management
 // ==============================================================================
 
-def MICROSERVICES = [
+import groovy.transform.Field
+
+@Field def MICROSERVICES = [
     [name: 'ms1-ingestion',   path: 'ms1-ingestion-capteurs',    port: 8001, deps: ['kafka', 'timescaledb']],
     [name: 'ms2-etl',         path: 'ms2-pretraitement',         port: null, deps: ['timescaledb']],
     [name: 'ms3-vision',      path: 'ms3-visionPlante-main',     port: 8002, deps: ['minio']],
@@ -16,8 +18,8 @@ def MICROSERVICES = [
     [name: 'ms7-frontend',    path: 'ms7-DashboardSIG/frontend', port: 8080, deps: ['ms7-backend']]
 ]
 
-def CHANGED_SERVICES = []
-def BUILD_VERSION = ""
+@Field def CHANGED_SERVICES = []
+@Field def BUILD_VERSION = ""
 
 pipeline {
     agent any
