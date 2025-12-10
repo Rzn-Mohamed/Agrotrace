@@ -40,9 +40,17 @@ pipeline {
                 echo '📥 Checking out source code...'
                 checkout scm
                 script {
-                    // Detect branch name for regular Pipeline jobs
-                    env.GIT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo "Detected branch: ${env.GIT_BRANCH}"
+                    // Detect branch name - handle detached HEAD case
+                    def branch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    if (branch == 'HEAD') {
+                        // In detached HEAD, try to get branch from git remote
+                        branch = sh(script: "git name-rev --name-only HEAD | sed 's|remotes/origin/||' | sed 's|~.*||'", returnStdout: true).trim()
+                        if (branch == '' || branch.contains('undefined')) {
+                            branch = 'main' // Default to main
+                        }
+                    }
+                    env.GIT_BRANCH = branch
+                    echo "✅ Detected branch: ${env.GIT_BRANCH}"
                 }
                 sh 'git log -1 --oneline'
             }
