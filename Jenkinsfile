@@ -126,7 +126,9 @@ USE_AI_RECOMMENDATIONS=false
                         sh '''
                             for ms in ms4-prevision-eau ms5-regles-agro ms6-RecoIrrigation; do
                                 if [ -d "$ms" ] && [ -f "$ms/requirements.txt" ]; then
-                                    find "$ms" -name "*.py" -exec python3 -m py_compile {} \; 2>/dev/null || true
+                                    find "$ms" -name "*.py" -type f | while read pyfile; do
+                                        python3 -m py_compile "$pyfile" 2>/dev/null || true
+                                    done
                                 fi
                             done
                             echo "Syntax checks completed"
