@@ -9,15 +9,14 @@ pipeline {
     agent any
 
     environment {
-        // Docker Registry Credentials
-        DOCKER_REGISTRY = credentials('docker-registry-url')
-        DOCKER_CREDENTIALS = credentials('docker-registry-credentials')
+        // Docker Registry URL (Secret Text credential)
+        DOCKER_REGISTRY_URL = credentials('docker-registry-url')
         
-        // Database Credentials
+        // Database Credentials (Secret Text credentials)
         TIMESCALE_USER = credentials('timescale-user')
         TIMESCALE_PASSWORD = credentials('timescale-password')
         
-        // MinIO Storage Credentials
+        // MinIO Storage Credentials (Secret Text credentials)
         MINIO_ROOT_USER = credentials('minio-root-user')
         MINIO_ROOT_PASSWORD = credentials('minio-root-password')
         
@@ -296,17 +295,17 @@ USE_AI_RECOMMENDATIONS=false
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY} -u "${DOCKER_USER}" --password-stdin
+                            echo "${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY_URL} -u "${DOCKER_USER}" --password-stdin
                             
                             # Tag and push all images
                             for service in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
-                                docker tag agrotrace/${service}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/agrotrace/${service}:${BUILD_NUMBER}
-                                docker tag agrotrace/${service}:latest ${DOCKER_REGISTRY}/agrotrace/${service}:latest
-                                docker push ${DOCKER_REGISTRY}/agrotrace/${service}:${BUILD_NUMBER}
-                                docker push ${DOCKER_REGISTRY}/agrotrace/${service}:latest
+                                docker tag agrotrace/${service}:${BUILD_NUMBER} ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
+                                docker tag agrotrace/${service}:latest ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
+                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
+                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
                             done
                             
-                            docker logout ${DOCKER_REGISTRY}
+                            docker logout ${DOCKER_REGISTRY_URL}
                         '''
                     }
                 }
