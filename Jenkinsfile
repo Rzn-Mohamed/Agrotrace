@@ -411,6 +411,7 @@ def runServiceTests(Map service) {
             sh '''
                 python3 -m venv venv || true
                 . venv/bin/activate
+                pip install --upgrade pip setuptools wheel
                 pip install -r requirements.txt
                 pip install pytest pytest-cov
                 pytest tests/ --junitxml=test-results/junit.xml --cov=. --cov-report=xml || true

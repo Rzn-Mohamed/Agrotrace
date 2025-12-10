@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python dependencies
 # Using --no-cache-dir to keep image small
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip setuptools wheel
 
 RUN pip install --no-cache-dir --default-timeout=1000 torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
