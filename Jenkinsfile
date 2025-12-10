@@ -39,6 +39,11 @@ pipeline {
             steps {
                 echo '📥 Checking out source code...'
                 checkout scm
+                script {
+                    // Detect branch name for regular Pipeline jobs
+                    env.GIT_BRANCH = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    echo "Detected branch: ${env.GIT_BRANCH}"
+                }
                 sh 'git log -1 --oneline'
             }
         }
@@ -243,10 +248,7 @@ USE_AI_RECOMMENDATIONS=false
         // ======================================================================
         stage('Integration Tests') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'develop'
-                }
+                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'develop' }
             }
             steps {
                 echo '🔗 Running integration tests...'
@@ -282,10 +284,7 @@ USE_AI_RECOMMENDATIONS=false
         // ======================================================================
         stage('Push to Registry') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'release/*'
-                }
+                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH.startsWith('release/') }
             }
             steps {
                 echo '📤 Pushing images to Docker Registry...'
@@ -318,7 +317,7 @@ USE_AI_RECOMMENDATIONS=false
         // ======================================================================
         stage('Deploy') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH == 'main' }
             }
             steps {
                 echo '🚀 Deploying AgroTrace stack...'
@@ -346,7 +345,7 @@ USE_AI_RECOMMENDATIONS=false
         // ======================================================================
         stage('Smoke Tests') {
             when {
-                branch 'main'
+                expression { env.GIT_BRANCH == 'main' }
             }
             steps {
                 echo '💨 Running smoke tests...'
@@ -401,7 +400,7 @@ USE_AI_RECOMMENDATIONS=false
         success {
             echo '✅ Pipeline completed successfully!'
             script {
-                if (env.BRANCH_NAME == 'main') {
+                if (env.GIT_BRANCH == 'main') {
                     echo '''
                     ╔═══════════════════════════════════════════════════════════╗
                     ║             🌾 AGROTRACE DEPLOYMENT SUCCESSFUL 🌾         ║
