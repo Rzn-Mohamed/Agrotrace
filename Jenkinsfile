@@ -22,7 +22,6 @@ pipeline {
         
         // Build Configuration
         COMPOSE_PROJECT_NAME = "agrotrace-${env.BUILD_NUMBER}"
-        DOCKER_BUILDKIT = '0'
     }
 
     options {
