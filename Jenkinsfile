@@ -35,14 +35,23 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Detect branch (handle detached HEAD)
+                    // Detect branch - simplified approach
                     def branch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    echo "Raw branch output: '${branch}'"
+                    
                     if (branch == 'HEAD') {
-                        branch = sh(script: "git name-rev --name-only HEAD | sed 's|remotes/origin/||' | sed 's|~.*||'", returnStdout: true).trim()
-                        if (!branch || branch.contains('undefined')) branch = 'main'
+                        // Detached HEAD - get from remote tracking
+                        branch = sh(script: 'git log -1 --pretty=%D HEAD | grep -oE "origin/[^,]+" | head -1 | sed "s|origin/||"', returnStdout: true).trim()
+                        echo "Detached HEAD - resolved to: '${branch}'"
                     }
+                    
+                    // Default to main if empty
+                    if (!branch || branch == '') {
+                        branch = 'main'
+                    }
+                    
                     env.GIT_BRANCH = branch
-                    echo "🔀 Branch: ${env.GIT_BRANCH}"
+                    echo "🔀 Final branch: ${env.GIT_BRANCH}"
                 }
             }
         }
@@ -165,9 +174,7 @@ MINIO_BUCKET_RESULTS=vision-results
         // DEPLOY (main branch only)
         // ==================================================================
         stage('Deploy') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
+           
             steps {
                 echo "🚀 Deploying..."
                 sh '''
@@ -184,9 +191,7 @@ MINIO_BUCKET_RESULTS=vision-results
         // HEALTH CHECK (main branch only)
         // ==================================================================
         stage('Health') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
+            
             steps {
                 echo "🏥 Health checks..."
                 sh '''
