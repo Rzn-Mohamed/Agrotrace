@@ -296,19 +296,25 @@ USE_AI_RECOMMENDATIONS=false
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
+                        // Debug: Show username (not password!)
+                        sh 'echo "Logging in as: $DOCKER_USER"'
+                        
+                        // Login to Docker Hub using printf to handle special chars in password
+                        sh 'printf "%s" "$DOCKER_PASS" | docker login --username "$DOCKER_USER" --password-stdin'
+                        
+                        // Tag and push all images
                         sh '''
-                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
-                            
-                            # Tag and push all images to Docker Hub
                             for service in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
+                                echo "Pushing ${service}..."
                                 docker tag agrotrace/${service}:${BUILD_NUMBER} aeztic/${service}:${BUILD_NUMBER}
                                 docker tag agrotrace/${service}:latest aeztic/${service}:latest
                                 docker push aeztic/${service}:${BUILD_NUMBER}
                                 docker push aeztic/${service}:latest
                             done
-                            
-                            docker logout
                         '''
+                        
+                        // Logout
+                        sh 'docker logout'
                     }
                 }
             }
