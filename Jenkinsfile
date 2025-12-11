@@ -276,12 +276,16 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 6: Integration Tests
         // ======================================================================
         stage('Integration Tests') {
-            when {
-                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'develop' }
-            }
             steps {
-                echo 'Running integration tests...'
                 script {
+                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
+                    
+                    if (env.GIT_BRANCH != 'main' && env.GIT_BRANCH != 'develop') {
+                        echo "Skipping Integration Tests - not on main or develop branch"
+                        return
+                    }
+                    
+                    echo 'Running integration tests...'
                     try {
                         // Start infrastructure for testing
                         sh '''
@@ -312,12 +316,17 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 7: Push to Registry
         // ======================================================================
         stage('Push to Registry') {
-            when {
-                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH.startsWith('release/') }
-            }
             steps {
-                echo 'Pushing images to Docker Registry...'
                 script {
+                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
+                    
+                    if (env.GIT_BRANCH != 'main' && !env.GIT_BRANCH.startsWith('release/')) {
+                        echo "Skipping Push to Registry - not on main or release branch"
+                        return
+                    }
+                    
+                    echo 'Pushing images to Docker Registry...'
+
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-registry-credentials',
                         usernameVariable: 'DOCKER_USER',
@@ -345,12 +354,16 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 8: Deploy
         // ======================================================================
         stage('Deploy') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
             steps {
-                echo 'Deploying AgroTrace stack...'
                 script {
+                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
+                    
+                    if (env.GIT_BRANCH != 'main') {
+                        echo "Skipping Deploy - not on main branch"
+                        return
+                    }
+                    
+                    echo 'Deploying AgroTrace stack...'
                     sh '''
                         # Stop existing containers if any
                         docker compose down --remove-orphans || true
@@ -373,12 +386,16 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 9: Smoke Tests
         // ======================================================================
         stage('Smoke Tests') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
             steps {
-                echo 'Running smoke tests...'
                 script {
+                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
+                    
+                    if (env.GIT_BRANCH != 'main') {
+                        echo "Skipping Smoke Tests - not on main branch"
+                        return
+                    }
+                    
+                    echo 'Running smoke tests...'
                     sh '''
                         # Test MS1 health endpoint
                         curl -f http://localhost:8001/health || echo "MS1 not yet ready"
