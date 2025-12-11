@@ -279,12 +279,6 @@ USE_AI_RECOMMENDATIONS=false
             steps {
                 script {
                     echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    
-                    if (env.GIT_BRANCH != 'main' && env.GIT_BRANCH != 'develop') {
-                        echo "Skipping Integration Tests - not on main or develop branch"
-                        return
-                    }
-                    
                     echo 'Running integration tests...'
                     try {
                         // Start infrastructure for testing
@@ -319,12 +313,6 @@ USE_AI_RECOMMENDATIONS=false
             steps {
                 script {
                     echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    
-                    if (env.GIT_BRANCH != 'main' && !env.GIT_BRANCH.startsWith('release/')) {
-                        echo "Skipping Push to Registry - not on main or release branch"
-                        return
-                    }
-                    
                     echo 'Pushing images to Docker Registry...'
 
                     withCredentials([usernamePassword(
@@ -357,12 +345,6 @@ USE_AI_RECOMMENDATIONS=false
             steps {
                 script {
                     echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    
-                    if (env.GIT_BRANCH != 'main') {
-                        echo "Skipping Deploy - not on main branch"
-                        return
-                    }
-                    
                     echo 'Deploying AgroTrace stack...'
                     sh '''
                         # Stop existing containers if any
@@ -389,12 +371,6 @@ USE_AI_RECOMMENDATIONS=false
             steps {
                 script {
                     echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    
-                    if (env.GIT_BRANCH != 'main') {
-                        echo "Skipping Smoke Tests - not on main branch"
-                        return
-                    }
-                    
                     echo 'Running smoke tests...'
                     sh '''
                         # Test MS1 health endpoint
