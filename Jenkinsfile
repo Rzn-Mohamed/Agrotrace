@@ -299,8 +299,17 @@ USE_AI_RECOMMENDATIONS=false
                         // Debug: Show username (not password!)
                         sh 'echo "Logging in as: $DOCKER_USER"'
                         
-                        // Login to Docker Hub using printf to handle special chars in password
-                        sh 'printf "%s" "$DOCKER_PASS" | docker login --username "$DOCKER_USER" --password-stdin'
+                        // Create a temporary file with the password and use it for login
+                        sh '''
+                            # Write password to temp file
+                            echo "$DOCKER_PASS" > /tmp/docker_pass.txt
+                            
+                            # Login using the temp file
+                            cat /tmp/docker_pass.txt | docker login --username "$DOCKER_USER" --password-stdin
+                            
+                            # Remove temp file immediately
+                            rm -f /tmp/docker_pass.txt
+                        '''
                         
                         // Tag and push all images
                         sh '''
