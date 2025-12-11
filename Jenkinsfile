@@ -255,9 +255,6 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 6: Integration Tests
         // ======================================================================
         stage('Integration Tests') {
-            when {
-                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'develop' }
-            }
             steps {
                 echo 'Running integration tests...'
                 script {
@@ -291,9 +288,6 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 7: Push to Registry
         // ======================================================================
         stage('Push to Registry') {
-            when {
-                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH.startsWith('release/') }
-            }
             steps {
                 echo 'Pushing images to Docker Registry...'
                 script {
@@ -324,9 +318,6 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 8: Deploy
         // ======================================================================
         stage('Deploy') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
             steps {
                 echo 'Deploying AgroTrace stack...'
                 script {
@@ -352,9 +343,6 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 9: Smoke Tests
         // ======================================================================
         stage('Smoke Tests') {
-            when {
-                expression { env.GIT_BRANCH == 'main' }
-            }
             steps {
                 echo 'Running smoke tests...'
                 script {
