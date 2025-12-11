@@ -297,17 +297,17 @@ USE_AI_RECOMMENDATIONS=false
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY_URL} -u "${DOCKER_USER}" --password-stdin
+                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
                             
-                            # Tag and push all images
+                            # Tag and push all images to Docker Hub
                             for service in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
-                                docker tag agrotrace/${service}:${BUILD_NUMBER} ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
-                                docker tag agrotrace/${service}:latest ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
-                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
-                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
+                                docker tag agrotrace/${service}:${BUILD_NUMBER} aeztic/${service}:${BUILD_NUMBER}
+                                docker tag agrotrace/${service}:latest aeztic/${service}:latest
+                                docker push aeztic/${service}:${BUILD_NUMBER}
+                                docker push aeztic/${service}:latest
                             done
                             
-                            docker logout ${DOCKER_REGISTRY_URL}
+                            docker logout
                         '''
                     }
                 }
