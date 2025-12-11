@@ -147,29 +147,20 @@ MINIO_BUCKET_RESULTS=vision-results
                 expression { env.GIT_BRANCH == 'main' }
             }
             steps {
-                echo "📤 Pushing to registry: ${DOCKER_REGISTRY_URL}"
-                withCredentials([usernamePassword(
-                    credentialsId: 'docker-registry-credentials',
-                    usernameVariable: 'REG_USER',
-                    passwordVariable: 'REG_PASS'
-                )]) {
-                    sh """
-                        echo "Registry URL: ${DOCKER_REGISTRY_URL}"
-                        echo "Registry User: ${REG_USER}"
-                        
-                        echo "\${REG_PASS}" | docker login ${DOCKER_REGISTRY_URL} -u "\${REG_USER}" --password-stdin
-                        
-                        for svc in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
-                            echo "Pushing \${svc}..."
-                            docker tag ${PROJECT_NAME}/\${svc}:${BUILD_NUMBER} ${DOCKER_REGISTRY_URL}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
-                            docker tag ${PROJECT_NAME}/\${svc}:latest ${DOCKER_REGISTRY_URL}/${PROJECT_NAME}/\${svc}:latest
-                            docker push ${DOCKER_REGISTRY_URL}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
-                            docker push ${DOCKER_REGISTRY_URL}/${PROJECT_NAME}/\${svc}:latest
-                        done
-                        
-                        docker logout ${DOCKER_REGISTRY_URL}
-                    """
-                }
+                echo "📤 Pushing to local registry..."
+                sh """
+                    REGISTRY="localhost:5001"
+                    
+                    for svc in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
+                        echo "Tagging and pushing \${svc}..."
+                        docker tag ${PROJECT_NAME}/\${svc}:${BUILD_NUMBER} \${REGISTRY}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
+                        docker tag ${PROJECT_NAME}/\${svc}:latest \${REGISTRY}/${PROJECT_NAME}/\${svc}:latest
+                        docker push \${REGISTRY}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
+                        docker push \${REGISTRY}/${PROJECT_NAME}/\${svc}:latest
+                    done
+                    
+                    echo "All images pushed to \${REGISTRY}"
+                """
                 echo "✅ Pushed all images"
             }
         }
