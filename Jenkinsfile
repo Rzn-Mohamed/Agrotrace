@@ -40,38 +40,17 @@ pipeline {
                 echo 'Checking out source code...'
                 checkout scm
                 script {
-                    // Detect branch name - handle detached HEAD case with multiple fallbacks
+                    // Detect branch name - handle detached HEAD case
                     def branch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    
                     if (branch == 'HEAD') {
-                        // Fallback 1: Try Jenkins environment variables
-                        if (env.BRANCH_NAME) {
-                            branch = env.BRANCH_NAME
-                        } else if (env.GIT_BRANCH) {
-                            // GIT_BRANCH might contain origin/ prefix
-                            branch = env.GIT_BRANCH.replaceAll('origin/', '')
-                        } else {
-                            // Fallback 2: Try git name-rev
-                            branch = sh(script: "git name-rev --name-only HEAD 2>/dev/null | sed 's|^remotes/origin/||' | sed 's|~.*||' | sed 's|\\^.*||'", returnStdout: true).trim()
-                        }
-                        
-                        // Fallback 3: Check if we can match commit to origin/main
-                        if (branch == '' || branch == 'HEAD' || branch.contains('undefined')) {
-                            def isMain = sh(script: 'git branch -r --contains HEAD 2>/dev/null | grep -q "origin/main" && echo "true" || echo "false"', returnStdout: true).trim()
-                            if (isMain == 'true') {
-                                branch = 'main'
-                            } else {
-                                branch = 'main' // Default to main as last resort
-                            }
+                        // In detached HEAD, try to get branch from git remote
+                        branch = sh(script: "git name-rev --name-only HEAD | sed 's|remotes/origin/||' | sed 's|~.*||'", returnStdout: true).trim()
+                        if (branch == '' || branch.contains('undefined')) {
+                            branch = 'main' // Default to main
                         }
                     }
-                    
-                    // Clean up any remaining prefixes
-                    branch = branch.replaceAll('^origin/', '').replaceAll('^refs/heads/', '')
-                    
                     env.GIT_BRANCH = branch
                     echo "Detected branch: ${env.GIT_BRANCH}"
-                    echo "Branch detection complete. Conditional stages will run: ${branch == 'main'}"
                 }
                 sh 'git log -1 --oneline'
             }
@@ -276,10 +255,12 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 6: Integration Tests
         // ======================================================================
         stage('Integration Tests') {
+            when {
+                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'develop' }
+            }
             steps {
+                echo 'Running integration tests...'
                 script {
-                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    echo 'Running integration tests...'
                     try {
                         // Start infrastructure for testing
                         sh '''
@@ -310,28 +291,29 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 7: Push to Registry
         // ======================================================================
         stage('Push to Registry') {
+            when {
+                expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH.startsWith('release/') }
+            }
             steps {
+                echo 'Pushing images to Docker Registry...'
                 script {
-                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    echo 'Pushing images to Docker Registry...'
-
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-registry-credentials',
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
                         sh '''
-                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                            echo "${DOCKER_PASS}" | docker login ${DOCKER_REGISTRY_URL} -u "${DOCKER_USER}" --password-stdin
                             
-                            # Tag and push all images to Docker Hub
+                            # Tag and push all images
                             for service in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
-                                docker tag agrotrace/${service}:${BUILD_NUMBER} aeztic/${service}:${BUILD_NUMBER}
-                                docker tag agrotrace/${service}:latest aeztic/${service}:latest
-                                docker push aeztic/${service}:${BUILD_NUMBER}
-                                docker push aeztic/${service}:latest
+                                docker tag agrotrace/${service}:${BUILD_NUMBER} ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
+                                docker tag agrotrace/${service}:latest ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
+                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:${BUILD_NUMBER}
+                                docker push ${DOCKER_REGISTRY_URL}/agrotrace/${service}:latest
                             done
                             
-                            docker logout
+                            docker logout ${DOCKER_REGISTRY_URL}
                         '''
                     }
                 }
@@ -342,10 +324,12 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 8: Deploy
         // ======================================================================
         stage('Deploy') {
+            when {
+                expression { env.GIT_BRANCH == 'main' }
+            }
             steps {
+                echo 'Deploying AgroTrace stack...'
                 script {
-                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    echo 'Deploying AgroTrace stack...'
                     sh '''
                         # Stop existing containers if any
                         docker compose down --remove-orphans || true
@@ -368,10 +352,12 @@ USE_AI_RECOMMENDATIONS=false
         // Stage 9: Smoke Tests
         // ======================================================================
         stage('Smoke Tests') {
+            when {
+                expression { env.GIT_BRANCH == 'main' }
+            }
             steps {
+                echo 'Running smoke tests...'
                 script {
-                    echo "DEBUG: GIT_BRANCH value is: '${env.GIT_BRANCH}'"
-                    echo 'Running smoke tests...'
                     sh '''
                         # Test MS1 health endpoint
                         curl -f http://localhost:8001/health || echo "MS1 not yet ready"
