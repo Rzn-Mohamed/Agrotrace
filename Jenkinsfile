@@ -37,20 +37,41 @@ pipeline {
         // ======================================================================
         stage('Checkout') {
             steps {
-                echo '📥 Checking out source code...'
+                echo 'Checking out source code...'
                 checkout scm
                 script {
-                    // Detect branch name - handle detached HEAD case
+                    // Detect branch name - handle detached HEAD case with multiple fallbacks
                     def branch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
+                    
                     if (branch == 'HEAD') {
-                        // In detached HEAD, try to get branch from git remote
-                        branch = sh(script: "git name-rev --name-only HEAD | sed 's|remotes/origin/||' | sed 's|~.*||'", returnStdout: true).trim()
-                        if (branch == '' || branch.contains('undefined')) {
-                            branch = 'main' // Default to main
+                        // Fallback 1: Try Jenkins environment variables
+                        if (env.BRANCH_NAME) {
+                            branch = env.BRANCH_NAME
+                        } else if (env.GIT_BRANCH) {
+                            // GIT_BRANCH might contain origin/ prefix
+                            branch = env.GIT_BRANCH.replaceAll('origin/', '')
+                        } else {
+                            // Fallback 2: Try git name-rev
+                            branch = sh(script: "git name-rev --name-only HEAD 2>/dev/null | sed 's|^remotes/origin/||' | sed 's|~.*||' | sed 's|\\^.*||'", returnStdout: true).trim()
+                        }
+                        
+                        // Fallback 3: Check if we can match commit to origin/main
+                        if (branch == '' || branch == 'HEAD' || branch.contains('undefined')) {
+                            def isMain = sh(script: 'git branch -r --contains HEAD 2>/dev/null | grep -q "origin/main" && echo "true" || echo "false"', returnStdout: true).trim()
+                            if (isMain == 'true') {
+                                branch = 'main'
+                            } else {
+                                branch = 'main' // Default to main as last resort
+                            }
                         }
                     }
+                    
+                    // Clean up any remaining prefixes
+                    branch = branch.replaceAll('^origin/', '').replaceAll('^refs/heads/', '')
+                    
                     env.GIT_BRANCH = branch
-                    echo "✅ Detected branch: ${env.GIT_BRANCH}"
+                    echo "Detected branch: ${env.GIT_BRANCH}"
+                    echo "Branch detection complete. Conditional stages will run: ${branch == 'main'}"
                 }
                 sh 'git log -1 --oneline'
             }
@@ -61,7 +82,7 @@ pipeline {
         // ======================================================================
         stage('Environment Setup') {
             steps {
-                echo '⚙️ Setting up environment...'
+                echo 'Setting up environment...'
                 script {
                     // Create .env file from credentials
                     writeFile file: '.env', text: """
@@ -99,7 +120,7 @@ USE_AI_RECOMMENDATIONS=false
                 stage('Lint MS1') {
                     steps {
                         dir('ms1-ingestion-capteurs') {
-                            echo '🔍 Linting MS1 - Ingestion Capteurs...'
+                            echo 'Linting MS1 - Ingestion Capteurs...'
                             sh '''
                                 if [ -f requirements.txt ]; then
                                     python3 -m py_compile app/*.py 2>/dev/null || echo "Syntax check completed"
@@ -111,7 +132,7 @@ USE_AI_RECOMMENDATIONS=false
                 stage('Lint MS2') {
                     steps {
                         dir('ms2-pretraitement') {
-                            echo '🔍 Linting MS2 - Pretraitement...'
+                            echo 'Linting MS2 - Pretraitement...'
                             sh '''
                                 if [ -f requirements.txt ]; then
                                     python3 -m py_compile pipeline/*.py 2>/dev/null || echo "Syntax check completed"
@@ -123,7 +144,7 @@ USE_AI_RECOMMENDATIONS=false
                 stage('Lint MS3') {
                     steps {
                         dir('ms3-visionPlante-main') {
-                            echo '🔍 Linting MS3 - Vision Plante...'
+                            echo 'Linting MS3 - Vision Plante...'
                             sh '''
                                 if [ -f requirements.txt ]; then
                                     python3 -m py_compile app/*.py 2>/dev/null || echo "Syntax check completed"
@@ -134,7 +155,7 @@ USE_AI_RECOMMENDATIONS=false
                 }
                 stage('Lint MS4-6') {
                     steps {
-                        echo '🔍 Linting MS4, MS5, MS6...'
+                        echo 'Linting MS4, MS5, MS6...'
                         sh '''
                             for ms in ms4-prevision-eau ms5-regles-agro ms6-RecoIrrigation; do
                                 if [ -d "$ms" ] && [ -f "$ms/requirements.txt" ]; then
@@ -150,7 +171,7 @@ USE_AI_RECOMMENDATIONS=false
                 stage('Lint MS7 Frontend') {
                     steps {
                         dir('ms7-DashboardSIG/frontend') {
-                            echo '🔍 Linting MS7 Frontend...'
+                            echo 'Linting MS7 Frontend...'
                             sh '''
                                 if [ -f package.json ]; then
                                     echo "Frontend package.json found"
@@ -169,49 +190,49 @@ USE_AI_RECOMMENDATIONS=false
             parallel {
                 stage('Build MS1') {
                     steps {
-                        echo '🐳 Building MS1 - Ingestion Capteurs...'
+                        echo 'Building MS1 - Ingestion Capteurs...'
                         sh 'docker build -t agrotrace/ms1-ingestion:${BUILD_NUMBER} -t agrotrace/ms1-ingestion:latest ./ms1-ingestion-capteurs'
                     }
                 }
                 stage('Build MS2') {
                     steps {
-                        echo '🐳 Building MS2 - Pretraitement...'
+                        echo 'Building MS2 - Pretraitement...'
                         sh 'docker build -t agrotrace/ms2-etl:${BUILD_NUMBER} -t agrotrace/ms2-etl:latest ./ms2-pretraitement'
                     }
                 }
                 stage('Build MS3') {
                     steps {
-                        echo '🐳 Building MS3 - Vision Plante...'
+                        echo 'Building MS3 - Vision Plante...'
                         sh 'docker build -t agrotrace/ms3-vision:${BUILD_NUMBER} -t agrotrace/ms3-vision:latest ./ms3-visionPlante-main'
                     }
                 }
                 stage('Build MS4') {
                     steps {
-                        echo '🐳 Building MS4 - Prevision Eau...'
+                        echo 'Building MS4 - Prevision Eau...'
                         sh 'docker build -t agrotrace/ms4-prevision:${BUILD_NUMBER} -t agrotrace/ms4-prevision:latest ./ms4-prevision-eau'
                     }
                 }
                 stage('Build MS5') {
                     steps {
-                        echo '🐳 Building MS5 - Regles Agro...'
+                        echo 'Building MS5 - Regles Agro...'
                         sh 'docker build -t agrotrace/ms5-regles:${BUILD_NUMBER} -t agrotrace/ms5-regles:latest ./ms5-regles-agro'
                     }
                 }
                 stage('Build MS6') {
                     steps {
-                        echo '🐳 Building MS6 - Reco Irrigation...'
+                        echo 'Building MS6 - Reco Irrigation...'
                         sh 'docker build -t agrotrace/ms6-reco:${BUILD_NUMBER} -t agrotrace/ms6-reco:latest ./ms6-RecoIrrigation'
                     }
                 }
                 stage('Build MS7 Backend') {
                     steps {
-                        echo '🐳 Building MS7 Backend...'
+                        echo 'Building MS7 Backend...'
                         sh 'docker build -t agrotrace/ms7-backend:${BUILD_NUMBER} -t agrotrace/ms7-backend:latest ./ms7-DashboardSIG/backend'
                     }
                 }
                 stage('Build MS7 Frontend') {
                     steps {
-                        echo '🐳 Building MS7 Frontend...'
+                        echo 'Building MS7 Frontend...'
                         sh 'docker build -t agrotrace/ms7-frontend:${BUILD_NUMBER} -t agrotrace/ms7-frontend:latest ./ms7-DashboardSIG/frontend'
                     }
                 }
@@ -223,7 +244,7 @@ USE_AI_RECOMMENDATIONS=false
         // ======================================================================
         stage('Unit Tests') {
             steps {
-                echo '🧪 Running unit tests...'
+                echo 'Running unit tests...'
                 script {
                     // Run tests in isolated containers
                     sh '''
@@ -259,7 +280,7 @@ USE_AI_RECOMMENDATIONS=false
                 expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'develop' }
             }
             steps {
-                echo '🔗 Running integration tests...'
+                echo 'Running integration tests...'
                 script {
                     try {
                         // Start infrastructure for testing
@@ -295,7 +316,7 @@ USE_AI_RECOMMENDATIONS=false
                 expression { env.GIT_BRANCH == 'main' || env.GIT_BRANCH.startsWith('release/') }
             }
             steps {
-                echo '📤 Pushing images to Docker Registry...'
+                echo 'Pushing images to Docker Registry...'
                 script {
                     withCredentials([usernamePassword(
                         credentialsId: 'docker-registry-credentials',
@@ -328,7 +349,7 @@ USE_AI_RECOMMENDATIONS=false
                 expression { env.GIT_BRANCH == 'main' }
             }
             steps {
-                echo '🚀 Deploying AgroTrace stack...'
+                echo 'Deploying AgroTrace stack...'
                 script {
                     sh '''
                         # Stop existing containers if any
@@ -356,7 +377,7 @@ USE_AI_RECOMMENDATIONS=false
                 expression { env.GIT_BRANCH == 'main' }
             }
             steps {
-                echo '💨 Running smoke tests...'
+                echo 'Running smoke tests...'
                 script {
                     sh '''
                         # Test MS1 health endpoint
@@ -406,7 +427,7 @@ USE_AI_RECOMMENDATIONS=false
         }
         
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
             script {
                 if (env.GIT_BRANCH == 'main') {
                     echo '''
@@ -423,7 +444,7 @@ USE_AI_RECOMMENDATIONS=false
         }
         
         failure {
-            echo '❌ Pipeline failed!'
+            echo 'Pipeline failed!'
             script {
                 // Collect logs for debugging
                 sh '''
@@ -434,7 +455,7 @@ USE_AI_RECOMMENDATIONS=false
         }
         
         unstable {
-            echo '⚠️ Pipeline completed with warnings.'
+            echo 'Pipeline completed with warnings.'
         }
     }
 }
