@@ -1,228 +1,492 @@
 // ==============================================================================
-// AgroTrace-MS - Jenkins CI/CD Pipeline
+// AgroTrace-MS - Optimized Jenkins CI/CD Pipeline
 // ==============================================================================
-// Optimized pipeline for building and deploying AgroTrace microservices.
+// A comprehensive pipeline for building, testing, and deploying the AgroTrace
+// microservices platform for precision agriculture
 // ==============================================================================
 
 pipeline {
     agent any
-
+    
+    // -------------------------------------------------------------------------
+    // Environment Variables
+    // -------------------------------------------------------------------------
     environment {
-        // Credentials - loaded from Jenkins credential store
-        DOCKER_REGISTRY_URL = credentials('docker-registry-url')
+        // Docker Configuration
+        DOCKER_REGISTRY = credentials('docker-registry-url')
+        DOCKER_CREDENTIALS = credentials('docker-registry-credentials')
+        
+        // Database Credentials
         TIMESCALE_USER = credentials('timescale-user')
         TIMESCALE_PASSWORD = credentials('timescale-password')
+        
+        // MinIO Object Storage
         MINIO_ROOT_USER = credentials('minio-root-user')
         MINIO_ROOT_PASSWORD = credentials('minio-root-password')
         
-        // Build config
-        PROJECT_NAME = "agrotrace"
-        COMPOSE_PROJECT = "${PROJECT_NAME}-${BUILD_NUMBER}"
+        // Project Configuration
+        PROJECT_NAME = 'agrotrace'
+        COMPOSE_PROJECT_NAME = 'agrotrace'
+        
+        // Microservices List
+        SERVICES = 'ms1-ingestion-capteurs,ms2-pretraitement,ms3-visionPlante-main,ms4-prevision-eau,ms5-regles-agro,ms6-RecoIrrigation,ms7-DashboardSIG'
     }
-
+    
+    // -------------------------------------------------------------------------
+    // Pipeline Options
+    // -------------------------------------------------------------------------
     options {
-        buildDiscarder(logRotator(numToKeepStr: '5'))
-        timeout(time: 45, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
+        timeout(time: 60, unit: 'MINUTES')
         disableConcurrentBuilds()
+        ansiColor('xterm')
     }
-
+    
+    // -------------------------------------------------------------------------
+    // Pipeline Stages
+    // -------------------------------------------------------------------------
     stages {
-        // ==================================================================
-        // CHECKOUT
-        // ==================================================================
+        
+        // =====================================================================
+        // Stage 1: Checkout & Setup
+        // =====================================================================
         stage('Checkout') {
             steps {
                 checkout scm
                 script {
-                    // Detect branch - simplified approach
-                    def branch = sh(script: 'git rev-parse --abbrev-ref HEAD', returnStdout: true).trim()
-                    echo "Raw branch output: '${branch}'"
+                    // Determine branch for conditional logic
+                    env.BRANCH_NAME = sh(
+                        script: "git rev-parse --abbrev-ref HEAD",
+                        returnStdout: true
+                    ).trim()
                     
-                    if (branch == 'HEAD') {
-                        // Detached HEAD - get from remote tracking
-                        branch = sh(script: 'git log -1 --pretty=%D HEAD | grep -oE "origin/[^,]+" | head -1 | sed "s|origin/||"', returnStdout: true).trim()
-                        echo "Detached HEAD - resolved to: '${branch}'"
-                    }
+                    // Get short commit hash for image tagging
+                    env.GIT_SHORT_HASH = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
                     
-                    // Default to main if empty
-                    if (!branch || branch == '') {
-                        branch = 'main'
-                    }
+                    // Set image tag based on branch
+                    env.IMAGE_TAG = (env.BRANCH_NAME == 'main') ? 'latest' : env.GIT_SHORT_HASH
                     
-                    env.GIT_BRANCH = branch
-                    echo "🔀 Final branch: ${env.GIT_BRANCH}"
+                    echo "🌿 Branch: ${env.BRANCH_NAME}"
+                    echo "🏷️  Image Tag: ${env.IMAGE_TAG}"
+                    echo "📝 Commit: ${env.GIT_SHORT_HASH}"
                 }
             }
         }
-
-        // ==================================================================
-        // SETUP ENVIRONMENT
-        // ==================================================================
-        stage('Setup') {
-            steps {
-                writeFile file: '.env', text: """
-TIMESCALE_USER=${TIMESCALE_USER}
-TIMESCALE_PASSWORD=${TIMESCALE_PASSWORD}
-TIMESCALE_DB=agrotrace_db
-MINIO_ROOT_USER=${MINIO_ROOT_USER}
-MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
-MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
-MINIO_BUCKET_IMAGES=uav-images
-MINIO_BUCKET_RESULTS=vision-results
-"""
-                echo "✅ Environment configured"
-            }
-        }
-
-        // ==================================================================
-        // BUILD ALL MICROSERVICES (PARALLEL)
-        // ==================================================================
-        stage('Build') {
+        
+        // =====================================================================
+        // Stage 2: Code Quality & Linting (Parallel)
+        // =====================================================================
+        stage('Code Quality') {
             parallel {
-                stage('MS1') {
+                stage('Python Lint') {
                     steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms1-ingestion:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms1-ingestion:latest ./ms1-ingestion-capteurs"
+                        script {
+                            def pythonServices = [
+                                'ms1-ingestion-capteurs',
+                                'ms2-pretraitement',
+                                'ms3-visionPlante-main',
+                                'ms4-prevision-eau',
+                                'ms5-regles-agro',
+                                'ms6-RecoIrrigation',
+                                'ms7-DashboardSIG/backend'
+                            ]
+                            for (service in pythonServices) {
+                                if (fileExists("${service}/requirements.txt")) {
+                                    echo "🔍 Linting ${service}..."
+                                    sh """
+                                        cd ${service}
+                                        pip install flake8 --quiet 2>/dev/null || true
+                                        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+                                    """
+                                }
+                            }
+                        }
                     }
                 }
-                stage('MS2') {
+                
+                stage('Frontend Lint') {
                     steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms2-etl:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms2-etl:latest ./ms2-pretraitement"
+                        script {
+                            if (fileExists('ms7-DashboardSIG/frontend/package.json')) {
+                                echo "🔍 Linting Frontend..."
+                                sh """
+                                    cd ms7-DashboardSIG/frontend
+                                    npm ci --silent 2>/dev/null || npm install --silent
+                                    npm run lint || true
+                                """
+                            } else {
+                                echo "⏭️  No frontend package.json found, skipping..."
+                            }
+                        }
                     }
                 }
-                stage('MS3') {
+                
+                stage('Docker Compose Validate') {
                     steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms3-vision:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms3-vision:latest ./ms3-visionPlante-main"
-                    }
-                }
-                stage('MS4') {
-                    steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms4-prevision:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms4-prevision:latest ./ms4-prevision-eau"
-                    }
-                }
-                stage('MS5') {
-                    steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms5-regles:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms5-regles:latest ./ms5-regles-agro"
-                    }
-                }
-                stage('MS6') {
-                    steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms6-reco:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms6-reco:latest ./ms6-RecoIrrigation"
-                    }
-                }
-                stage('MS7-BE') {
-                    steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms7-backend:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms7-backend:latest ./ms7-DashboardSIG/backend"
-                    }
-                }
-                stage('MS7-FE') {
-                    steps {
-                        sh "docker build -t ${PROJECT_NAME}/ms7-frontend:${BUILD_NUMBER} -t ${PROJECT_NAME}/ms7-frontend:latest ./ms7-DashboardSIG/frontend"
+                        echo "🔍 Validating docker-compose.yml..."
+                        sh 'docker compose config --quiet'
                     }
                 }
             }
         }
-
-        // ==================================================================
-        // TESTS
-        // ==================================================================
-        stage('Test') {
-            steps {
-                echo "🧪 Running tests..."
-                sh '''
-                    docker run --rm ${PROJECT_NAME}/ms1-ingestion:${BUILD_NUMBER} python -c "print('MS1 OK')" || true
-                    docker run --rm ${PROJECT_NAME}/ms4-prevision:${BUILD_NUMBER} python -c "print('MS4 OK')" || true
-                    docker run --rm ${PROJECT_NAME}/ms5-regles:${BUILD_NUMBER} python -c "print('MS5 OK')" || true
-                '''
-                echo "✅ Tests passed"
+        
+        // =====================================================================
+        // Stage 3: Build Docker Images (Parallel)
+        // =====================================================================
+        stage('Build Images') {
+            parallel {
+                stage('Build: MS1 Ingestion') {
+                    steps {
+                        buildMicroservice('ms1-ingestion-capteurs', 'ms1-ingestion')
+                    }
+                }
+                
+                stage('Build: MS2 ETL') {
+                    steps {
+                        buildMicroservice('ms2-pretraitement', 'ms2-etl')
+                    }
+                }
+                
+                stage('Build: MS3 Vision') {
+                    steps {
+                        buildMicroservice('ms3-visionPlante-main', 'ms3-vision')
+                    }
+                }
+                
+                stage('Build: MS4 Prevision') {
+                    steps {
+                        buildMicroservice('ms4-prevision-eau', 'ms4-prevision')
+                    }
+                }
+                
+                stage('Build: MS5 Regles') {
+                    steps {
+                        buildMicroservice('ms5-regles-agro', 'ms5-regles')
+                    }
+                }
+                
+                stage('Build: MS6 Reco') {
+                    steps {
+                        buildMicroservice('ms6-RecoIrrigation', 'ms6-reco')
+                    }
+                }
+                
+                stage('Build: MS7 Backend') {
+                    steps {
+                        buildMicroservice('ms7-DashboardSIG/backend', 'ms7-backend')
+                    }
+                }
+                
+                stage('Build: MS7 Frontend') {
+                    steps {
+                        buildMicroservice('ms7-DashboardSIG/frontend', 'ms7-frontend')
+                    }
+                }
             }
         }
-
-        // ==================================================================
-        // PUSH TO REGISTRY (main branch only)
-        // ==================================================================
-        stage('Push') {
+        
+        // =====================================================================
+        // Stage 4: Unit Tests (Parallel)
+        // =====================================================================
+        stage('Unit Tests') {
+            parallel {
+                stage('Test: Python Services') {
+                    steps {
+                        script {
+                            def testableServices = [
+                                'ms1-ingestion-capteurs',
+                                'ms4-prevision-eau',
+                                'ms5-regles-agro',
+                                'ms6-RecoIrrigation',
+                                'ms7-DashboardSIG/backend'
+                            ]
+                            for (service in testableServices) {
+                                if (fileExists("${service}/tests") || fileExists("${service}/test")) {
+                                    echo "🧪 Testing ${service}..."
+                                    sh """
+                                        docker run --rm \
+                                            ${PROJECT_NAME}/${service.replace('/', '-')}:${IMAGE_TAG} \
+                                            python -m pytest tests/ -v --tb=short || true
+                                    """
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                stage('Test: Frontend') {
+                    steps {
+                        script {
+                            if (fileExists('ms7-DashboardSIG/frontend/package.json')) {
+                                echo "🧪 Testing Frontend..."
+                                sh """
+                                    cd ms7-DashboardSIG/frontend
+                                    npm run test || true
+                                """
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // =====================================================================
+        // Stage 5: Integration Tests (Main Branch Only)
+        // =====================================================================
+        stage('Integration Tests') {
             when {
-                expression { env.GIT_BRANCH == 'main' }
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                    branch 'develop'
+                    expression { env.BRANCH_NAME ==~ /(main|master|develop)/ }
+                }
             }
             steps {
-                echo "📤 Pushing to local registry..."
-                sh """
-                    REGISTRY="localhost:5001"
+                script {
+                    echo "🔗 Starting Integration Tests..."
                     
-                    for svc in ms1-ingestion ms2-etl ms3-vision ms4-prevision ms5-regles ms6-reco ms7-backend ms7-frontend; do
-                        echo "Tagging and pushing \${svc}..."
-                        docker tag ${PROJECT_NAME}/\${svc}:${BUILD_NUMBER} \${REGISTRY}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
-                        docker tag ${PROJECT_NAME}/\${svc}:latest \${REGISTRY}/${PROJECT_NAME}/\${svc}:latest
-                        docker push \${REGISTRY}/${PROJECT_NAME}/\${svc}:${BUILD_NUMBER}
-                        docker push \${REGISTRY}/${PROJECT_NAME}/\${svc}:latest
-                    done
+                    // Start infrastructure services
+                    sh '''
+                        docker compose up -d timescaledb kafka zookeeper minio
+                        sleep 30
+                    '''
                     
-                    echo "All images pushed to \${REGISTRY}"
-                """
-                echo "✅ Pushed all images"
+                    // Run integration tests
+                    sh '''
+                        docker compose up -d ms1-ingestion ms5-regles ms6-reco
+                        sleep 20
+                        
+                        # Health checks
+                        curl -f http://localhost:8001/health || exit 1
+                        curl -f http://localhost:8004/health || exit 1
+                        curl -f http://localhost:8005/health || exit 1
+                        
+                        echo "✅ Integration tests passed!"
+                    '''
+                }
+            }
+            post {
+                always {
+                    sh 'docker compose down -v --remove-orphans || true'
+                }
             }
         }
-
-        // ==================================================================
-        // DEPLOY (main branch only)
-        // ==================================================================
+        
+        // =====================================================================
+        // Stage 6: Push to Docker Registry (Main Branch Only)
+        // =====================================================================
+        stage('Push to Registry') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
+                }
+            }
+            steps {
+                script {
+                    echo "📦 Pushing images to Docker Registry..."
+                    
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'docker-registry-credentials',
+                            usernameVariable: 'DOCKER_USER',
+                            passwordVariable: 'DOCKER_PASS'
+                        )
+                    ]) {
+                        sh '''
+                            echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                        '''
+                        
+                        def services = [
+                            'ms1-ingestion',
+                            'ms2-etl',
+                            'ms3-vision',
+                            'ms4-prevision',
+                            'ms5-regles',
+                            'ms6-reco',
+                            'ms7-backend',
+                            'ms7-frontend'
+                        ]
+                        
+                        for (service in services) {
+                            sh """
+                                docker tag ${PROJECT_NAME}/${service}:${IMAGE_TAG} ${DOCKER_USER}/${service}:${IMAGE_TAG}
+                                docker tag ${PROJECT_NAME}/${service}:${IMAGE_TAG} ${DOCKER_USER}/${service}:latest
+                                docker push ${DOCKER_USER}/${service}:${IMAGE_TAG}
+                                docker push ${DOCKER_USER}/${service}:latest
+                            """
+                        }
+                        
+                        sh 'docker logout'
+                    }
+                    
+                    echo "✅ All images pushed successfully!"
+                }
+            }
+        }
+        
+        // =====================================================================
+        // Stage 7: Deploy (Main Branch Only)
+        // =====================================================================
         stage('Deploy') {
-           
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
+                }
+            }
             steps {
-                echo "🚀 Deploying..."
-                sh '''
-                    docker compose down --remove-orphans || true
-                    docker compose up -d
-                    sleep 30
-                    docker compose ps
-                '''
-                echo "✅ Deployed successfully"
+                script {
+                    echo "🚀 Deploying AgroTrace Platform..."
+                    
+                    withCredentials([
+                        string(credentialsId: 'timescale-user', variable: 'TIMESCALE_USER'),
+                        string(credentialsId: 'timescale-password', variable: 'TIMESCALE_PASSWORD'),
+                        string(credentialsId: 'minio-root-user', variable: 'MINIO_ROOT_USER'),
+                        string(credentialsId: 'minio-root-password', variable: 'MINIO_ROOT_PASSWORD')
+                    ]) {
+                        sh '''
+                            # Export credentials for docker-compose
+                            export TIMESCALE_USER="${TIMESCALE_USER}"
+                            export TIMESCALE_PASSWORD="${TIMESCALE_PASSWORD}"
+                            export MINIO_ROOT_USER="${MINIO_ROOT_USER}"
+                            export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}"
+                            
+                            # Pull latest images and deploy
+                            docker compose pull
+                            docker compose up -d --remove-orphans
+                            
+                            echo "⏳ Waiting for services to be healthy..."
+                            sleep 60
+                        '''
+                    }
+                    
+                    echo "✅ Deployment completed!"
+                }
             }
         }
-
-        // ==================================================================
-        // HEALTH CHECK (main branch only)
-        // ==================================================================
-        stage('Health') {
-            
+        
+        // =====================================================================
+        // Stage 8: Smoke Tests (Post-Deployment)
+        // =====================================================================
+        stage('Smoke Tests') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
+                }
+            }
             steps {
-                echo "🏥 Health checks..."
-                sh '''
-                    curl -sf http://localhost:8001/health && echo " MS1 ✓" || echo " MS1 ✗"
-                    curl -sf http://localhost:8002/health && echo " MS3 ✓" || echo " MS3 ✗"
-                    curl -sf http://localhost:8003/health && echo " MS4 ✓" || echo " MS4 ✗"
-                    curl -sf http://localhost:8004/health && echo " MS5 ✓" || echo " MS5 ✗"
-                    curl -sf http://localhost:8005/health && echo " MS6 ✓" || echo " MS6 ✗"
-                    curl -sf http://localhost:8006/api/health && echo " MS7-BE ✓" || echo " MS7-BE ✗"
-                    curl -sf http://localhost:8080 && echo " MS7-FE ✓" || echo " MS7-FE ✗"
-                '''
+                script {
+                    echo "🔥 Running Smoke Tests..."
+                    
+                    def healthChecks = [
+                        [name: 'MS1 Ingestion', url: 'http://localhost:8001/health'],
+                        [name: 'MS3 Vision', url: 'http://localhost:8002/health'],
+                        [name: 'MS4 Prevision', url: 'http://localhost:8003/health'],
+                        [name: 'MS5 Regles', url: 'http://localhost:8004/health'],
+                        [name: 'MS6 Reco', url: 'http://localhost:8005/health'],
+                        [name: 'MS7 Backend', url: 'http://localhost:8006/api/health'],
+                        [name: 'MS7 Frontend', url: 'http://localhost:8080/']
+                    ]
+                    
+                    def failed = []
+                    
+                    for (check in healthChecks) {
+                        def result = sh(
+                            script: "curl -sf ${check.url} -o /dev/null",
+                            returnStatus: true
+                        )
+                        if (result == 0) {
+                            echo "✅ ${check.name}: HEALTHY"
+                        } else {
+                            echo "❌ ${check.name}: UNHEALTHY"
+                            failed.add(check.name)
+                        }
+                    }
+                    
+                    if (failed.size() > 0) {
+                        error("Smoke tests failed for: ${failed.join(', ')}")
+                    }
+                    
+                    echo "✅ All smoke tests passed!"
+                }
             }
         }
     }
-
-    // ======================================================================
-    // POST ACTIONS
-    // ======================================================================
+    
+    // -------------------------------------------------------------------------
+    // Post-Build Actions
+    // -------------------------------------------------------------------------
     post {
         always {
-            sh "docker compose -p ${COMPOSE_PROJECT} down -v --remove-orphans 2>/dev/null || true"
-            cleanWs(deleteDirs: true, notFailBuild: true)
+            echo "🧹 Cleaning up workspace..."
+            cleanWs(
+                deleteDirs: true,
+                disableDeferredWipeout: true,
+                patterns: [
+                    [pattern: '**/node_modules/**', type: 'EXCLUDE'],
+                    [pattern: '**/__pycache__/**', type: 'INCLUDE']
+                ]
+            )
         }
+        
         success {
-            echo '''
-            ╔══════════════════════════════════════╗
-            ║   🌾 AGROTRACE BUILD SUCCESS 🌾      ║
-            ╠══════════════════════════════════════╣
-            ║  Dashboard: http://localhost:8080    ║
-            ║  API:       http://localhost:8006    ║
-            ╚══════════════════════════════════════╝
-            '''
+            echo """
+            ╔══════════════════════════════════════════════════════════════╗
+            ║  ✅ BUILD SUCCESSFUL                                          ║
+            ║  Branch: ${env.BRANCH_NAME}                                   
+            ║  Commit: ${env.GIT_SHORT_HASH}                                
+            ║  Tag: ${env.IMAGE_TAG}                                        
+            ╚══════════════════════════════════════════════════════════════╝
+            """
         }
+        
         failure {
-            echo "❌ Build failed!"
-            sh "docker compose logs --tail=30 2>/dev/null || true"
+            echo """
+            ╔══════════════════════════════════════════════════════════════╗
+            ║  ❌ BUILD FAILED                                              ║
+            ║  Branch: ${env.BRANCH_NAME}                                   
+            ║  Commit: ${env.GIT_SHORT_HASH}                                
+            ╚══════════════════════════════════════════════════════════════╝
+            """
+            
+            // Optional: Send notification on failure
+            // slackSend(channel: '#devops', color: 'danger', message: "Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}")
         }
+    }
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Builds a microservice Docker image
+ * @param contextPath The path to the service directory
+ * @param imageName The name for the Docker image
+ */
+def buildMicroservice(String contextPath, String imageName) {
+    if (fileExists("${contextPath}/Dockerfile")) {
+        echo "🔨 Building ${imageName}..."
+        sh """
+            docker build \
+                --pull \
+                --cache-from ${PROJECT_NAME}/${imageName}:latest \
+                -t ${PROJECT_NAME}/${imageName}:${IMAGE_TAG} \
+                -t ${PROJECT_NAME}/${imageName}:latest \
+                ${contextPath}
+        """
+        echo "✅ ${imageName} built successfully!"
+    } else {
+        echo "⚠️  No Dockerfile found for ${imageName}, skipping..."
     }
 }
