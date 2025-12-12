@@ -54,11 +54,38 @@ pipeline {
             steps {
                 checkout scm
                 script {
-                    // Determine branch for conditional logic
-                    env.BRANCH_NAME = sh(
-                        script: "git rev-parse --abbrev-ref HEAD",
-                        returnStdout: true
-                    ).trim()
+                    // Better branch detection for Jenkins
+                    // Try multiple methods to detect branch
+                    def branch = ''
+                    
+                    // Method 1: Check GIT_BRANCH env var (set by Jenkins Git plugin)
+                    if (env.GIT_BRANCH) {
+                        branch = env.GIT_BRANCH.replaceAll('origin/', '')
+                    }
+                    
+                    // Method 2: Try to get from git command
+                    if (!branch || branch == 'HEAD') {
+                        branch = sh(
+                            script: "git name-rev --name-only HEAD 2>/dev/null | sed 's|remotes/origin/||' || echo 'main'",
+                            returnStdout: true
+                        ).trim()
+                    }
+                    
+                    // Method 3: Check remote tracking
+                    if (!branch || branch == 'HEAD' || branch.contains('~')) {
+                        branch = sh(
+                            script: "git branch -r --contains HEAD 2>/dev/null | head -1 | sed 's|origin/||' | xargs || echo 'main'",
+                            returnStdout: true
+                        ).trim()
+                    }
+                    
+                    // Default to main if still not detected
+                    if (!branch || branch == 'HEAD') {
+                        branch = 'main'
+                    }
+                    
+                    env.BRANCH_NAME = branch
+                    env.IS_MAIN_BRANCH = (branch == 'main' || branch == 'master') ? 'true' : 'false'
                     
                     // Get short commit hash for image tagging
                     env.GIT_SHORT_HASH = sh(
@@ -67,11 +94,12 @@ pipeline {
                     ).trim()
                     
                     // Set image tag based on branch
-                    env.IMAGE_TAG = (env.BRANCH_NAME == 'main') ? 'latest' : env.GIT_SHORT_HASH
+                    env.IMAGE_TAG = (env.IS_MAIN_BRANCH == 'true') ? 'latest' : env.GIT_SHORT_HASH
                     
                     echo "🌿 Branch: ${env.BRANCH_NAME}"
                     echo "🏷️  Image Tag: ${env.IMAGE_TAG}"
                     echo "📝 Commit: ${env.GIT_SHORT_HASH}"
+                    echo "🎯 Is Main Branch: ${env.IS_MAIN_BRANCH}"
                 }
             }
         }
@@ -215,12 +243,7 @@ pipeline {
         // =====================================================================
         stage('Integration Tests') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                    branch 'develop'
-                    expression { env.BRANCH_NAME ==~ /(main|master|develop)/ }
-                }
+                expression { env.IS_MAIN_BRANCH == 'true' }
             }
             steps {
                 script {
@@ -262,11 +285,7 @@ pipeline {
         // =====================================================================
         stage('Push to Registry') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
-                }
+                expression { env.IS_MAIN_BRANCH == 'true' }
             }
             steps {
                 script {
@@ -316,11 +335,7 @@ pipeline {
         // =====================================================================
         stage('Deploy') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
-                }
+                expression { env.IS_MAIN_BRANCH == 'true' }
             }
             steps {
                 script {
@@ -357,11 +372,7 @@ pipeline {
         // =====================================================================
         stage('Smoke Tests') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                    expression { env.BRANCH_NAME ==~ /(main|master)/ }
-                }
+                expression { env.IS_MAIN_BRANCH == 'true' }
             }
             steps {
                 script {
