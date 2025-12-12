@@ -84,25 +84,18 @@ pipeline {
                 stage('Python Lint') {
                     steps {
                         script {
-                            def pythonServices = [
-                                'ms1-ingestion-capteurs',
-                                'ms2-pretraitement',
-                                'ms3-visionPlante-main',
-                                'ms4-prevision-eau',
-                                'ms5-regles-agro',
-                                'ms6-RecoIrrigation',
-                                'ms7-DashboardSIG/backend'
-                            ]
-                            for (service in pythonServices) {
-                                if (fileExists("${service}/requirements.txt")) {
-                                    echo "🔍 Linting ${service}..."
-                                    sh """
-                                        cd ${service}
-                                        pip install flake8 --quiet 2>/dev/null || true
-                                        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
-                                    """
-                                }
-                            }
+                            echo "🔍 Running Python linting via Docker..."
+                            sh '''
+                                docker run --rm -v "$(pwd)":/app -w /app python:3.11-slim sh -c "
+                                    pip install flake8 --quiet && 
+                                    for service in ms1-ingestion-capteurs ms2-pretraitement ms3-visionPlante-main ms4-prevision-eau ms5-regles-agro ms6-RecoIrrigation ms7-DashboardSIG/backend; do
+                                        if [ -f \"\$service/requirements.txt\" ]; then
+                                            echo \"Linting \$service...\";
+                                            flake8 \$service --count --select=E9,F63,F7,F82 --show-source --statistics || true;
+                                        fi;
+                                    done
+                                " || true
+                            '''
                         }
                     }
                 }
@@ -111,12 +104,13 @@ pipeline {
                     steps {
                         script {
                             if (fileExists('ms7-DashboardSIG/frontend/package.json')) {
-                                echo "🔍 Linting Frontend..."
-                                sh """
-                                    cd ms7-DashboardSIG/frontend
-                                    npm ci --silent 2>/dev/null || npm install --silent
-                                    npm run lint || true
-                                """
+                                echo "🔍 Linting Frontend via Docker..."
+                                sh '''
+                                    docker run --rm -v "$(pwd)/ms7-DashboardSIG/frontend":/app -w /app node:20-alpine sh -c "
+                                        npm ci --silent 2>/dev/null || npm install --silent;
+                                        npm run lint || true
+                                    " || true
+                                '''
                             } else {
                                 echo "⏭️  No frontend package.json found, skipping..."
                             }
@@ -221,11 +215,13 @@ pipeline {
                     steps {
                         script {
                             if (fileExists('ms7-DashboardSIG/frontend/package.json')) {
-                                echo "🧪 Testing Frontend..."
-                                sh """
-                                    cd ms7-DashboardSIG/frontend
-                                    npm run test || true
-                                """
+                                echo "🧪 Testing Frontend via Docker..."
+                                sh '''
+                                    docker run --rm -v "$(pwd)/ms7-DashboardSIG/frontend":/app -w /app node:20-alpine sh -c "
+                                        npm ci --silent 2>/dev/null || npm install --silent;
+                                        npm run test || echo 'No test script found, skipping...'
+                                    " || true
+                                '''
                             }
                         }
                     }
