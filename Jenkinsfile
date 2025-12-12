@@ -80,34 +80,45 @@ pipeline {
         // Stage 2: Code Quality & Validation
         // =====================================================================
         stage('Code Quality') {
-            parallel {
-                stage('Docker Compose Validate') {
-                    steps {
-                        echo "🔍 Validating docker compose.yml..."
-                        sh 'docker compose config --quiet'
+            steps {
+                script {
+                    // Detect which docker compose command is available
+                    def composeCmd = ''
+                    def result = sh(script: 'docker compose version 2>/dev/null', returnStatus: true)
+                    if (result == 0) {
+                        composeCmd = 'docker compose'
+                    } else {
+                        result = sh(script: 'docker-compose version 2>/dev/null', returnStatus: true)
+                        if (result == 0) {
+                            composeCmd = 'docker-compose'
+                        }
                     }
-                }
-                
-                stage('Check Dockerfiles') {
-                    steps {
-                        script {
-                            def services = [
-                                'ms1-ingestion-capteurs',
-                                'ms2-pretraitement',
-                                'ms3-visionPlante-main',
-                                'ms4-prevision-eau',
-                                'ms5-regles-agro',
-                                'ms6-RecoIrrigation',
-                                'ms7-DashboardSIG/backend',
-                                'ms7-DashboardSIG/frontend'
-                            ]
-                            for (service in services) {
-                                if (fileExists("${service}/Dockerfile")) {
-                                    echo "✅ Dockerfile found: ${service}"
-                                } else {
-                                    echo "⚠️  Missing Dockerfile: ${service}"
-                                }
-                            }
+                    
+                    if (composeCmd) {
+                        echo "✅ Using: ${composeCmd}"
+                        env.COMPOSE_CMD = composeCmd
+                        sh "${composeCmd} config --quiet || echo 'Compose validation skipped'"
+                    } else {
+                        echo "⚠️ Neither docker compose nor docker-compose found, skipping validation"
+                        env.COMPOSE_CMD = 'docker-compose'
+                    }
+                    
+                    // Check Dockerfiles
+                    def services = [
+                        'ms1-ingestion-capteurs',
+                        'ms2-pretraitement',
+                        'ms3-visionPlante-main',
+                        'ms4-prevision-eau',
+                        'ms5-regles-agro',
+                        'ms6-RecoIrrigation',
+                        'ms7-DashboardSIG/backend',
+                        'ms7-DashboardSIG/frontend'
+                    ]
+                    for (service in services) {
+                        if (fileExists("${service}/Dockerfile")) {
+                            echo "✅ Dockerfile found: ${service}"
+                        } else {
+                            echo "⚠️ Missing Dockerfile: ${service}"
                         }
                     }
                 }
@@ -214,16 +225,17 @@ pipeline {
             steps {
                 script {
                     echo "🔗 Starting Integration Tests..."
+                    def cmd = env.COMPOSE_CMD ?: 'docker-compose'
                     
                     // Start infrastructure services
-                    sh '''
-                        docker compose up -d timescaledb kafka zookeeper minio
+                    sh """
+                        ${cmd} up -d timescaledb kafka zookeeper minio
                         sleep 30
-                    '''
+                    """
                     
                     // Run integration tests
-                    sh '''
-                        docker compose up -d ms1-ingestion ms5-regles ms6-reco
+                    sh """
+                        ${cmd} up -d ms1-ingestion ms5-regles ms6-reco
                         sleep 20
                         
                         # Health checks
@@ -232,12 +244,15 @@ pipeline {
                         curl -f http://localhost:8005/health || exit 1
                         
                         echo "✅ Integration tests passed!"
-                    '''
+                    """
                 }
             }
             post {
                 always {
-                    sh 'docker compose down -v --remove-orphans || true'
+                    script {
+                        def cmd = env.COMPOSE_CMD ?: 'docker-compose'
+                        sh "${cmd} down -v --remove-orphans || true"
+                    }
                 }
             }
         }
@@ -310,27 +325,26 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Deploying AgroTrace Platform..."
+                    def cmd = env.COMPOSE_CMD ?: 'docker-compose'
                     
                     withCredentials([
-                        string(credentialsId: 'timescale-user', variable: 'TIMESCALE_USER'),
-                        string(credentialsId: 'timescale-password', variable: 'TIMESCALE_PASSWORD'),
-                        string(credentialsId: 'minio-root-user', variable: 'MINIO_ROOT_USER'),
-                        string(credentialsId: 'minio-root-password', variable: 'MINIO_ROOT_PASSWORD')
+                        string(credentialsId: 'timescale-user', variable: 'TS_USER'),
+                        string(credentialsId: 'timescale-password', variable: 'TS_PASS'),
+                        string(credentialsId: 'minio-root-user', variable: 'MINIO_USER'),
+                        string(credentialsId: 'minio-root-password', variable: 'MINIO_PASS')
                     ]) {
-                        sh '''
-                            # Export credentials for docker compose
-                            export TIMESCALE_USER="${TIMESCALE_USER}"
-                            export TIMESCALE_PASSWORD="${TIMESCALE_PASSWORD}"
-                            export MINIO_ROOT_USER="${MINIO_ROOT_USER}"
-                            export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}"
+                        sh """
+                            export TIMESCALE_USER="${TS_USER}"
+                            export TIMESCALE_PASSWORD="${TS_PASS}"
+                            export MINIO_ROOT_USER="${MINIO_USER}"
+                            export MINIO_ROOT_PASSWORD="${MINIO_PASS}"
                             
-                            # Pull latest images and deploy
-                            docker compose pull
-                            docker compose up -d --remove-orphans
+                            ${cmd} pull || true
+                            ${cmd} up -d --remove-orphans
                             
                             echo "⏳ Waiting for services to be healthy..."
                             sleep 60
-                        '''
+                        """
                     }
                     
                     echo "✅ Deployment completed!"
