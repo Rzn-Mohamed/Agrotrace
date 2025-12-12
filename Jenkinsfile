@@ -110,28 +110,37 @@ pipeline {
         stage('Code Quality') {
             steps {
                 script {
-                    // Detect which docker compose command is available
+                    echo "🔍 Detecting Docker Compose..."
+                    
+                    // Try to detect which docker compose command works
                     def composeCmd = ''
-                    def result = sh(script: 'docker compose version 2>/dev/null', returnStatus: true)
-                    if (result == 0) {
+                    
+                    // Check docker compose (v2 plugin)
+                    def check1 = sh(script: 'which docker 2>/dev/null && docker compose version 2>&1 | grep -i version', returnStatus: true)
+                    if (check1 == 0) {
                         composeCmd = 'docker compose'
+                        echo "✅ Found: docker compose (v2 plugin)"
                     } else {
-                        result = sh(script: 'docker-compose version 2>/dev/null', returnStatus: true)
-                        if (result == 0) {
+                        // Check docker-compose (standalone)
+                        def check2 = sh(script: 'which docker-compose 2>/dev/null', returnStatus: true)
+                        if (check2 == 0) {
                             composeCmd = 'docker-compose'
+                            echo "✅ Found: docker-compose (standalone)"
                         }
                     }
                     
                     if (composeCmd) {
-                        echo "✅ Using: ${composeCmd}"
                         env.COMPOSE_CMD = composeCmd
-                        sh "${composeCmd} config --quiet || echo 'Compose validation skipped'"
+                        env.COMPOSE_AVAILABLE = 'true'
+                        sh "${composeCmd} config --quiet 2>/dev/null || echo 'Compose config check skipped'"
                     } else {
-                        echo "⚠️ Neither docker compose nor docker-compose found, skipping validation"
-                        env.COMPOSE_CMD = 'docker-compose'
+                        echo "⚠️ No Docker Compose found - skipping compose-dependent stages"
+                        env.COMPOSE_CMD = 'echo COMPOSE_NOT_AVAILABLE'
+                        env.COMPOSE_AVAILABLE = 'false'
                     }
                     
                     // Check Dockerfiles
+                    echo "🔍 Checking Dockerfiles..."
                     def services = [
                         'ms1-ingestion-capteurs',
                         'ms2-pretraitement',
@@ -144,9 +153,9 @@ pipeline {
                     ]
                     for (service in services) {
                         if (fileExists("${service}/Dockerfile")) {
-                            echo "✅ Dockerfile found: ${service}"
+                            echo "✅ ${service}"
                         } else {
-                            echo "⚠️ Missing Dockerfile: ${service}"
+                            echo "⚠️ Missing: ${service}"
                         }
                     }
                 }
@@ -243,12 +252,12 @@ pipeline {
         // =====================================================================
         stage('Integration Tests') {
             when {
-                expression { env.IS_MAIN_BRANCH == 'true' }
+                expression { env.IS_MAIN_BRANCH == 'true' && env.COMPOSE_AVAILABLE == 'true' }
             }
             steps {
                 script {
                     echo "🔗 Starting Integration Tests..."
-                    def cmd = env.COMPOSE_CMD ?: 'docker-compose'
+                    def cmd = env.COMPOSE_CMD
                     
                     // Start infrastructure services
                     sh """
@@ -273,8 +282,9 @@ pipeline {
             post {
                 always {
                     script {
-                        def cmd = env.COMPOSE_CMD ?: 'docker-compose'
-                        sh "${cmd} down -v --remove-orphans || true"
+                        if (env.COMPOSE_AVAILABLE == 'true') {
+                            sh "${env.COMPOSE_CMD} down -v --remove-orphans || true"
+                        }
                     }
                 }
             }
@@ -335,12 +345,12 @@ pipeline {
         // =====================================================================
         stage('Deploy') {
             when {
-                expression { env.IS_MAIN_BRANCH == 'true' }
+                expression { env.IS_MAIN_BRANCH == 'true' && env.COMPOSE_AVAILABLE == 'true' }
             }
             steps {
                 script {
                     echo "🚀 Deploying AgroTrace Platform..."
-                    def cmd = env.COMPOSE_CMD ?: 'docker-compose'
+                    def cmd = env.COMPOSE_CMD
                     
                     withCredentials([
                         string(credentialsId: 'timescale-user', variable: 'TS_USER'),
