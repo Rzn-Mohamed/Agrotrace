@@ -84,7 +84,7 @@ pipeline {
                 stage('Docker Compose Validate') {
                     steps {
                         echo "🔍 Validating docker-compose.yml..."
-                        sh 'docker compose config --quiet'
+                        sh 'docker-compose config --quiet'
                     }
                 }
                 
@@ -217,13 +217,13 @@ pipeline {
                     
                     // Start infrastructure services
                     sh '''
-                        docker compose up -d timescaledb kafka zookeeper minio
+                        docker-compose up -d timescaledb kafka zookeeper minio
                         sleep 30
                     '''
                     
                     // Run integration tests
                     sh '''
-                        docker compose up -d ms1-ingestion ms5-regles ms6-reco
+                        docker-compose up -d ms1-ingestion ms5-regles ms6-reco
                         sleep 20
                         
                         # Health checks
@@ -237,7 +237,7 @@ pipeline {
             }
             post {
                 always {
-                    sh 'docker compose down -v --remove-orphans || true'
+                    sh 'docker-compose down -v --remove-orphans || true'
                 }
             }
         }
@@ -325,8 +325,8 @@ pipeline {
                             export MINIO_ROOT_PASSWORD="${MINIO_ROOT_PASSWORD}"
                             
                             # Pull latest images and deploy
-                            docker compose pull
-                            docker compose up -d --remove-orphans
+                            docker-compose pull
+                            docker-compose up -d --remove-orphans
                             
                             echo "⏳ Waiting for services to be healthy..."
                             sleep 60
