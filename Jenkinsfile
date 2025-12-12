@@ -382,7 +382,7 @@ pipeline {
         // =====================================================================
         stage('Smoke Tests') {
             when {
-                expression { env.IS_MAIN_BRANCH == 'true' }
+                expression { env.IS_MAIN_BRANCH == 'true' && env.COMPOSE_AVAILABLE == 'true' }
             }
             steps {
                 script {
