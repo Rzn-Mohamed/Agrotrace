@@ -445,6 +445,29 @@ docker-compose ps
 
 </div>
 
+---
+
+## 🐳 Docker Hub
+
+<div align="center">
+
+![Docker Hub AgroTrace](images/docker_hub.png)
+
+*Images Docker de la plateforme AgroTrace publiées sur Docker Hub*
+
+</div>
+
+---
+
+## 📦 Dépendances Python (pip)
+
+<div align="center">
+
+![Dépendances pip](images/pip.png)
+
+*Packages Python installés via pip pour les microservices AgroTrace*
+
+</div>
 
 ---
 
