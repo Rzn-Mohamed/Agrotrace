@@ -225,7 +225,7 @@ L'architecture se compose de **7 microservices** interconnectés, orchestrés vi
 
 ### MS6 - RecoIrrigation 💧
 
-**Rôle** : Calcul intelligent de plans d'irrigation combinant approche scientifique (évapotranspiration) et analyse contextuelle par LLM (Gemini/GPT) pour des recommandations personnalisées.
+**Rôle** : Calcul intelligent de plans d'irrigation combinant approche scientifique (évapotranspiration) et analyse contextuelle par LLM (Gemini) pour des recommandations personnalisées.
 
 <div align="center">
 
@@ -236,7 +236,7 @@ L'architecture se compose de **7 microservices** interconnectés, orchestrés vi
 | Caractéristique | Détail |
 |-----------------|--------|
 | **Port** | 8005 |
-| **Technologies** | FastAPI, Google Gemini, OpenAI GPT |
+| **Technologies** | FastAPI, Google Gemini |
 | **Approche** | Hybride scientifique + IA générative |
 | **Sortie** | Plan d'irrigation avec justification |
 
@@ -296,7 +296,7 @@ La capture d'écran ci-dessous montre les messages transitant par Apache Kafka s
 </tr>
 <tr>
 <td><strong>🧠 Intégration LLM</strong></td>
-<td>Google Gemini 1.5 Flash, OpenAI GPT</td>
+<td>Google Gemini 1.5 Flash</td>
 </tr>
 <tr>
 <td><strong>📨 Messagerie</strong></td>
@@ -400,7 +400,7 @@ docker-compose ps
 ### 3. Recommandations Intelligentes (MS6)
 
 - **Approche Hybride** : Calcul scientifique + analyse LLM
-- **Options LLM** : Google Gemini 1.5 Flash, OpenAI GPT
+- **Options LLM** : Google Gemini 1.5 Flash
 - **Sortie** : Plans d'irrigation contextualisés avec scores de confiance
 
 ---
@@ -445,29 +445,6 @@ docker-compose ps
 
 </div>
 
-```yaml
-# Infrastructure
-├── Zookeeper          # Coordination Kafka
-├── Kafka              # Streaming d'événements
-├── TimescaleDB        # Base de données séries temporelles
-├── MinIO              # Stockage objets
-├── PostGIS            # Base de données géospatiale
-
-# Microservices
-├── ms1-ingestion      # Ingestion données IoT
-├── ms1-consumer       # Consommateur Kafka
-├── ms2-etl            # Prétraitement données
-├── ms3-vision         # IA maladies plantes
-├── ms4-prevision      # Prévision hydrique
-├── ms5-regles         # Moteur de règles
-├── ms6-reco           # Recommandations IA
-├── ms7-backend        # API Dashboard
-└── ms7-frontend       # Dashboard React
-
-# Outils Administration
-├── Adminer            # Gestion BDD
-└── Kafka-UI           # Monitoring Kafka
-```
 
 ---
 
