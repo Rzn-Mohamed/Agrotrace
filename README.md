@@ -189,6 +189,14 @@ L'architecture se compose de **7 microservices** interconnectés, orchestrés vi
 | **Modèle IA** | Segmentation sémantique des maladies |
 | **Stockage** | MinIO (compatible S3) |
 
+<div align="center">
+
+![Interface MinIO - Stockage des Images](images/minio.png)
+
+*Interface MinIO pour le stockage des images d'analyse des maladies des plantes*
+
+</div>
+
 ---
 
 ### MS4 - PrévisionEau 📈
