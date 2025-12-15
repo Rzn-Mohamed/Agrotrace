@@ -447,25 +447,25 @@ docker-compose ps
 
 ---
 
-## 🐳 Docker Hub
+## � Pipeline Jenkins CI/CD
 
 <div align="center">
 
-![Docker Hub AgroTrace](images/docker_hub.png)
+![Jenkins Pipeline Stage View](images/pip.png)
 
-*Images Docker de la plateforme AgroTrace publiées sur Docker Hub*
+*Vue des étapes du pipeline Jenkins - Intégration et Déploiement Continu*
 
 </div>
 
 ---
 
-## 📦 Dépendances Python (pip)
+## � Docker Hub Registry
 
 <div align="center">
 
-![Dépendances pip](images/pip.png)
+![Docker Hub AgroTrace](images/docker_hub.png)
 
-*Packages Python installés via pip pour les microservices AgroTrace*
+*Images Docker poussées automatiquement vers Docker Hub après un build réussi du pipeline*
 
 </div>
 
