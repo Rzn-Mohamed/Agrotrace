@@ -483,7 +483,7 @@ docker-compose ps
 
 <div align="center">
 
-<video src="images/Agrotrace.mp4" controls width="100%"></video>
+![AgroTrace Demo](images/Agrotrace.gif)
 
 *Enregistrement de démonstration de la plateforme AgroTrace en action*
 
