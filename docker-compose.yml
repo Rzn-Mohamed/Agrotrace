@@ -73,7 +73,7 @@ services:
   # ============================================================================
   
   timescaledb:
-    image: timescale/timescaledb:latest-pg14
+    image: timescale/timescaledb-ha:pg14-latest
     container_name: agrotrace-timescaledb
     hostname: timescaledb
     networks:
@@ -87,6 +87,7 @@ services:
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ./database/init_unified.sql:/docker-entrypoint-initdb.d/init_unified.sql:ro
+    command: ["postgres", "-c", "shared_preload_libraries=timescaledb,postgis-3"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-agrotrace_admin} -d ${TIMESCALE_DB:-agrotrace_db}"]
       interval: 10s

@@ -20,7 +20,7 @@ export const getParcelles = async (req, res) => {
             json_build_object(
               'type', 'Feature',
               'id', parcelle_data.id,
-              'geometry', parcelle_data.geometry_json::json,
+              'geometry', parcelle_data.geometry::json,
               'properties', json_build_object(
                 'id', parcelle_data.id,
                 'nom', parcelle_data.nom,
@@ -48,7 +48,7 @@ export const getParcelles = async (req, res) => {
           p.niveau_stress,
           p.besoin_eau_mm,
           p.derniere_irrigation,
-          p.geometry_json,
+          ST_AsGeoJSON(p.geometry) as geometry,
           0 as nb_alertes,
           0 as nb_reco
         FROM parcelles_simple p
@@ -86,7 +86,7 @@ export const getParcelleById = async (req, res) => {
         p.niveau_stress,
         p.besoin_eau_mm,
         p.derniere_irrigation,
-        p.geometry_json::json as geometry,
+        ST_AsGeoJSON(p.geometry)::json as geometry,
         COALESCE(
           (SELECT json_agg(
             json_build_object(

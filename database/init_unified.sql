@@ -273,6 +273,23 @@ ON CONFLICT DO NOTHING;
 -- VIEWS FOR DASHBOARD
 -- ============================================================================
 
+-- View: Simplified parcels view (for backend compatibility)
+CREATE OR REPLACE VIEW parcelles_simple AS
+SELECT 
+    id,
+    nom,
+    culture,
+    superficie_ha,
+    date_semis,
+    geometry,
+    stress_hydrique,
+    niveau_stress,
+    besoin_eau_mm,
+    derniere_irrigation,
+    created_at,
+    updated_at
+FROM parcelles;
+
 -- View: Parcels with active alerts
 CREATE OR REPLACE VIEW v_parcelles_alertes AS
 SELECT 

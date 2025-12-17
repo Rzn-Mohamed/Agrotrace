@@ -157,6 +157,23 @@ VALUES
 -- VUES UTILES
 -- ============================================================================
 
+-- Vue simplifiée: parcelles_simple (pour compatibilité avec le backend)
+CREATE OR REPLACE VIEW parcelles_simple AS
+SELECT 
+    id,
+    nom,
+    culture,
+    superficie_ha,
+    date_semis,
+    geometry,
+    stress_hydrique,
+    niveau_stress,
+    besoin_eau_mm,
+    derniere_irrigation,
+    created_at,
+    updated_at
+FROM parcelles;
+
 -- Vue: Parcelles avec leurs alertes actives
 CREATE OR REPLACE VIEW v_parcelles_alertes AS
 SELECT 

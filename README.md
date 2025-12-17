@@ -479,6 +479,18 @@ docker-compose ps
 
 ---
 
+## 🎬 Démonstration Vidéo
+
+<div align="center">
+
+<video src="images/Agrotrace.mp4" controls width="100%"></video>
+
+*Enregistrement de démonstration de la plateforme AgroTrace en action*
+
+</div>
+
+---
+
 ## 📜 Licence
 
 Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.

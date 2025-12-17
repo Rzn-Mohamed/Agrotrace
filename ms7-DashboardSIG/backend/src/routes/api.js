@@ -174,7 +174,7 @@ router.get('/parcelles/:id/enriched', async (req, res) => {
       SELECT 
         p.id, p.nom, p.culture, p.superficie_ha, p.date_semis,
         p.stress_hydrique, p.niveau_stress, p.besoin_eau_mm,
-        p.derniere_irrigation, p.geometry_json::json as geometry
+        p.derniere_irrigation, ST_AsGeoJSON(p.geometry)::json as geometry
       FROM parcelles_simple p
       WHERE p.id = $1
     `, [id]);
