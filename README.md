@@ -483,7 +483,11 @@ docker-compose ps
 
 <div align="center">
 
-![AgroTrace Demo](images/Agrotrace.gif)
+
+
+https://github.com/user-attachments/assets/c87b1ac3-7620-4491-8233-ce1e335d9bda
+
+
 
 *Enregistrement de démonstration de la plateforme AgroTrace en action*
 
