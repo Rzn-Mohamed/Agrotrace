@@ -483,7 +483,9 @@ docker-compose ps
 
 <div align="center">
 
-<video src="images/Agrotrace.mp4" controls width="100%"></video>
+
+https://github.com/user-attachments/assets/8e2229e4-f31f-49cf-b092-6b045538351a
+
 
 *Enregistrement de démonstration de la plateforme AgroTrace en action*
 
