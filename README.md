@@ -483,11 +483,7 @@ docker-compose ps
 
 <div align="center">
 
-
-
-https://github.com/user-attachments/assets/c87b1ac3-7620-4491-8233-ce1e335d9bda
-
-
+<video src="images/Agrotrace.mp4" controls width="100%"></video>
 
 *Enregistrement de démonstration de la plateforme AgroTrace en action*
 
@@ -518,6 +514,10 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 ![Fait avec FastAPI](https://img.shields.io/badge/Fait%20avec-FastAPI-009688?style=flat-square)
 ![Propulsé par Kafka](https://img.shields.io/badge/Propuls%C3%A9%20par-Kafka-231F20?style=flat-square)
 ![IA avec PyTorch](https://img.shields.io/badge/IA%20avec-PyTorch-EE4C2C?style=flat-square)
+
+**Version 2.0.0** | Décembre 2025
+
+</div>vec PyTorch](https://img.shields.io/badge/IA%20avec-PyTorch-EE4C2C?style=flat-square)
 
 **Version 2.0.0** | Décembre 2025
 
