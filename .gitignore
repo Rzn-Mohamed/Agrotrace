@@ -30,7 +30,7 @@ venv.bak/
 .env.local
 .env.*.local
 *.env
-
+.env.example
 # Docker
 *.log
 docker-compose.override.yml
